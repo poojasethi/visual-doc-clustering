@@ -1,0 +1,23 @@
+name: local_project
+channels:
+  - pytorch
+  - defaults
+dependencies:
+  - python=3.9
+  - pytorch
+  - numpy <= 1.20
+  - scipy
+  - tqdm
+  - docopt
+  - nltk
+  - torchvision
+  - pip
+  - pip:
+    - sentencepiece
+    - sacrebleu
+    - tensorboard
+    - transformers
+    - datasets
+    - 'git+https://github.com/facebookresearch/detectron2.git'
+    - pytesseract
+    - 'git+https://github.com/jhlau/gensim'
