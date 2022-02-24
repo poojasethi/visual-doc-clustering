@@ -1,6 +1,5 @@
 from transformers import LayoutLMModel, LayoutLMConfig, AdamW
 from transformers import LayoutLMTokenizer, LayoutLMForSequenceClassification
-from PIL import Image
 import torch
 from typing import List, Tuple, Dict, Set, Union
 import json
@@ -13,6 +12,7 @@ import pandas as pd
 import os
 from datasets import Dataset, Features, Sequence, ClassLabel, Value, Array2D, concatenate_datasets
 from transformers import AdamW
+from PIL import Image
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -97,46 +97,54 @@ class LayoutLM():
                 int(1000 * (box[2] / width)), \
                 int(1000 * (box[3] / height))]
 
-    def apply_ocr(self, datapoint):
-        image = Image.open(datapoint['image_path'])
-        width, height = image.size
+    def ocr(self, datapoint):
         
-        # apply ocr to the image 
-        ocr_df = pytesseract.image_to_data(image, output_type='data.frame')
-        float_cols = ocr_df.select_dtypes('float').columns
-        ocr_df = ocr_df.dropna().reset_index(drop=True)
-        ocr_df[float_cols] = ocr_df[float_cols].round(0).astype(int)
-        ocr_df = ocr_df.replace(r'^\s*$', np.nan, regex=True)
-        ocr_df = ocr_df.dropna().reset_index(drop=True)
+        try:
+            image = Image.open(datapoint['image_path'])
+        except:
+            datapoint['words'] = None
+            datapoint['bbox'] = None
+            return datapoint
+        else:
+            width, height = image.size
+            
+            # apply ocr to the image 
+            df = pytesseract.image_to_data(image, output_type='data.frame')
+            float_cols = df.select_dtypes('float').columns
+            df = df.dropna().reset_index(drop=True)
+            df[float_cols] = df[float_cols].round(0).astype(int)
+            df = df.replace(r'^\s*$', np.nan, regex=True)
+            df = df.dropna().reset_index(drop=True)
 
-        # get the words and actual (unnormalized) bounding boxes
-        #words = [word for word in ocr_df.text if str(word) != 'nan'])
-        words = list(ocr_df.text)
-        words = [str(w) for w in words]
-        coordinates = ocr_df[['left', 'top', 'width', 'height']]
-        actual_boxes = []
-        for idx, row in coordinates.iterrows():
-            x, y, w, h = tuple(row) # the row comes in (left, top, width, height) format
-            actual_box = [x, y, x+w, y+h] # we turn it into (left, top, left+width, top+height) to get the actual box 
-            actual_boxes.append(actual_box)
+            # get the words and actual (unnormalized) bounding boxes
+            #words = [word for word in ocr_df.text if str(word) != 'nan'])
+            words = list(df.text)
+            words = [str(w) for w in words]
+            coordinates = df[['left', 'top', 'width', 'height']]
+            unnorm_boxes = []
+            for i, row in coordinates.iterrows():
+                x, y, w, h = tuple(row) # the row comes in (left, top, width, height) format
+                unnorm_box = [x, y, x+w, y+h] # we turn it into (left, top, left+width, top+height) to get the actual box 
+                unnorm_boxes.append(unnorm_box)
         
-        # normalize the bounding boxes
-        boxes = []
+            # normalize the bounding boxes
+            boxes = []
 
-        for box in actual_boxes:
-            boxes.append(self.normalize_box(box, width, height))
-        
-        # add as extra columns 
-        assert len(words) == len(boxes)
-        datapoint['words'] = words
-        datapoint['bbox'] = boxes
-        return datapoint
+            for box in unnorm_boxes:
+                boxes.append(self.normalize_box(box, width, height))
+            
+            # add as extra columns 
+            assert len(words) == len(boxes)
+            datapoint['words'] = words
+            datapoint['bbox'] = boxes
+            return datapoint
 
     def process_ftdata(self, in_directory, out_directory):
 
         folders = [re.match(r"^.+/(.*)", f).group(1) for f in glob.glob(in_directory + '/*')]
 
         i=0
+        #for label in folders:
         for label in folders:
 
             self.ft_data = pd.DataFrame()
@@ -151,8 +159,9 @@ class LayoutLM():
                 i=i+1
 
             self.ft_data = Dataset.from_pandas(self.ft_data)
-            self.ft_data = self.ft_data.map(self.apply_ocr)
             self.ft_data = self.ft_data.remove_columns('__index_level_0__')
+            self.ft_data = self.ft_data.map(self.ocr)
+            self.ft_data = self.ft_data.filter(lambda x: x['words'] is not None)
 
             #Output to json file
             self.ft_data.to_pandas().to_pickle(out_directory+'/'+label+'.pkl')
@@ -194,12 +203,12 @@ class LayoutLM():
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        input_ids = datapoint["input_ids"].to(device)
-        bbox = datapoint["bbox"].to(device)
-        attention_mask = datapoint["attention_mask"].to(device)
-        token_type_ids = datapoint["token_type_ids"].to(device)
+        input_ids = datapoint["input_ids"].view(1, -1).to(device)
+        bbox = datapoint["bbox"].view(1, -1, 4).to(device)
+        attention_mask = datapoint["attention_mask"].view(1, -1).to(device)
+        token_type_ids = datapoint["token_type_ids"].view(1, -1).to(device)
 
-        outputs = self.model(input_ids=input_ids.view(1, -1), bbox=bbox.view(1, -1, 4), attention_mask=attention_mask.view(1, -1), token_type_ids=token_type_ids.view(1, -1))        
+        outputs = self.model(input_ids=input_ids, bbox=bbox, attention_mask=attention_mask, token_type_ids=token_type_ids.view(1, -1))        
 
         datapoint['last_hidden_state'] = outputs.last_hidden_state[0]
 
@@ -234,6 +243,10 @@ class LayoutLM():
                 self.encodings.set_format(type='torch', columns=['input_ids', 'bbox', 'attention_mask', 'token_type_ids'])
 
                 self.encodings.to_pandas().to_pickle(outpath+'/'+label+'.pkl')
+            
+            a_file = open(outpath + "/labels_dict.json", "w")
+            json.dump(self.label2idx, a_file)
+            a_file.close()
 
         else:
 
@@ -262,12 +275,25 @@ class LayoutLM():
     def fine_tune(self, input_dir, model_save_path, global_step = 0, num_train_epochs = 5):
 
         #Bring in data
-        dfs = glob.glob(input_dir + "/*")
+        dfs = glob.glob(input_dir + "/*.pkl")
+
+        a_file = open(input_dir + "/labels_dict.json", "r")
+        self.label2idx = a_file.read()
+        a_file.close()
 
         datasets = []
         for df in dfs:
+
             int_df = pd.read_pickle(df)
-            int_df['bbox'] = [x.tolist() for x in int_df['bbox']]
+            #Flatten each bbox first
+            int_df['bbox'] = int_df['bbox'].apply(lambda x: x.tolist())
+            int_df['bbox'] = int_df['bbox'].apply(lambda x: [item for sublist in x for item in sublist])
+            int_df['bbox'] = int_df['bbox'].apply(lambda x: np.array(x))
+
+            #Randomly sample train_data
+            print(df)
+            int_df = int_df.sample(n = 10)
+
             datasets.append(Dataset.from_pandas(int_df))
         
         train_data = concatenate_datasets(datasets)
@@ -276,7 +302,8 @@ class LayoutLM():
 
         train_size=len(train_data)
 
-        dataloader = torch.utils.data.DataLoader(train_data, batch_size=5, shuffle=True)
+        batch_size = 1
+        dataloader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, shuffle=True)
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -288,25 +315,21 @@ class LayoutLM():
 
         optimizer = AdamW(self.model.parameters(), lr=5e-5)
 
-        global_step = 0
-        num_train_epochs = 50
-        t_total = len(train_data) * num_train_epochs # total number of training steps 
-
         for epoch in range(num_train_epochs):
-            print("Epoch:", epoch)
+            print("Training Epoch:", epoch)
             running_loss = 0.0
             correct = 0
             self.model.train()
-            for batch in dataloader:
+            for batch in tqdm(dataloader):
                 input_ids = batch["input_ids"].to(device)
-                bbox = batch["bbox"].to(device)
+                bbox = batch["bbox"].view(batch_size, 512, 4).to(device)
                 attention_mask = batch["attention_mask"].to(device)
                 token_type_ids = batch["token_type_ids"].to(device)
-                labels = batch["label"].to(device)
+                labels = batch["label"].view(batch_size, -1).to(device)
 
                 # forward pass
-                outputs = self.model(input_ids=input_ids.view(1, -1), bbox=bbox.view(1, -1, 4), \
-                    attention_mask=attention_mask.view(1, -1), token_type_ids=token_type_ids.view(1, -1), \
+                outputs = self.model(input_ids=input_ids, bbox=bbox, \
+                    attention_mask=attention_mask, token_type_ids=token_type_ids, \
                     labels = labels)
 
                 loss = outputs.loss
@@ -321,7 +344,6 @@ class LayoutLM():
                 # update
                 optimizer.step()
                 optimizer.zero_grad()
-                global_step += 1
         
             print("Loss:", running_loss / batch["input_ids"].shape[0])
             accuracy = 100 * correct / train_size
@@ -339,6 +361,19 @@ if __name__ == '__main__':
     #Without fine-tuning, just process json
     i1 = LayoutLM()
     i1.process_json(directory)
-    #Included an outpath to save the embeddings as well within the get_encodings method
     outpath = '/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/encodings/layoutlm_noft_encodings.pkl'
     encodings = i1.get_encodings(outpath)
+
+    #With fine-tuning
+
+    in_directory = '/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/test'
+    out_directory = '/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/test_int'
+
+    i2 = LayoutLM()
+    i2.process_ftdata(in_directory, out_directory)
+
+    outpath = '/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/test_enc'
+    i2.get_encodings(outpath, finetune = True, directory = out_directory)
+
+    model_save_path = '/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/models/ft_model'
+    i2.fine_tune(outpath, model_save_path, global_step = 0, num_train_epochs = 5)
