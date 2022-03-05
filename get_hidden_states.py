@@ -1,4 +1,5 @@
 from LayoutLM import LayoutLM
+from LayoutLMv2 import LayoutLMv2
 import glob
 import json
 
@@ -32,3 +33,9 @@ if __name__ == '__main__':
     encodings = i3.get_encodings()
     hidden_state = i3.get_hidden_state(outpath = outpath, model_path = model_path)
     print(hidden_state.to_pandas())
+
+    #OUTPUT VANILLA LM V2 HIDDEN STATES
+    i4 = LayoutLMv2()
+    directory = '/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/files'
+    hidden_state = i4.get_outputs(directory)
+    print(hidden_state)
