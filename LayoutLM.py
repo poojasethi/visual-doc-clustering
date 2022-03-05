@@ -1,10 +1,11 @@
 from transformers import LayoutLMModel, LayoutLMConfig, AdamW
-from transformers import LayoutLMTokenizer, LayoutLMForSequenceClassification
+from transformers import LayoutLMTokenizer, LayoutLMForSequenceClassification, LayoutLMForTokenClassification
 import torch
 from typing import List, Tuple, Dict, Set, Union
 import json
 import pytesseract
 import glob
+from pathlib import Path
 import re
 from tqdm import tqdm
 import numpy as np
@@ -53,40 +54,55 @@ class LayoutLM():
         #self.model.to(device)
 
         #For processing data embeddings
-        self.pt_data = pd.DataFrame(columns = ['image_path', 'words', 'bbox'])
+        self.pt_data = pd.DataFrame(columns = ['image_path', 'words', 'bbox', 'label'])
         self.pt_data['words'] = self.pt_data['words'].astype('object')
         self.pt_data['bbox'] = self.pt_data['bbox'].astype('object')
+        self.pt_data['label'] = self.pt_data['label'].astype('object')
         self.encoding = pd.DataFrame()
 
         #For fine-tuning
         self.label2idx = {}
         self.ft_data = pd.DataFrame()
 
-    def process_json(self, directory):
+    def process_json(self, directory, word_label, position_label, label_label = None,\
+        position_processing = False, funsd = False):
 
         #Import Files
-        folders = glob.glob(directory + "/*")
+
+        files = Path(directory).rglob('*.json')
 
         i = 0
 
-        for folder in folders:
-            f = glob.glob(folder + "/*.json")[0]
+        for f in files:
             words = []
             positions = []
+            labels = []
 
             with open(f, 'r') as json_file:
                 json_data = json.load(json_file)
+
+                if funsd == True:
+                    json_data = json_data['form']
+
                 for data in json_data:
-                    words.append(data['processed_word'])
 
-                    positions.append([int(data['location']['left'] * 1000), \
-                        int((data['location']['top'] - data['location']['height'])* 1000),\
-                        int((data['location']['left'] + data['location']['width'])* 1000), \
-                        int(data['location']['top']* 1000)])
+                    words.append(data[word_label])
 
-            self.pt_data.at[i,'image_path'] = f
+                    if position_processing == True:
+                        positions.append([int(data[position_label]['left'] * 1000), \
+                        int((data[position_label]['top'] - data[position_label]['height'])* 1000),\
+                        int((data[position_label]['left'] + data[position_label]['width'])* 1000), \
+                        int(data[position_label]['top']* 1000)])
+                    else:
+                        positions.append(data[position_label])
+
+                    if label_label is not None:
+                        labels.append(data[label_label])
+
+            self.pt_data.at[i,'image_path'] = str(f)
             self.pt_data.at[i,'words'] = words.copy()
             self.pt_data.at[i,'bbox'] = positions.copy()
+            self.pt_data.at[i, 'label'] = labels.copy()
             i+=1
         
         return self.pt_data
@@ -151,9 +167,7 @@ class LayoutLM():
 
             files = glob.glob(in_directory+'/'+label+'/*') 
 
-            sampled_files = files
-
-            for filepath in sampled_files:
+            for filepath in files:
                 self.ft_data.at[i,'image_path']=filepath
                 self.ft_data.at[i,'label']=label
                 i=i+1
@@ -167,7 +181,7 @@ class LayoutLM():
             self.ft_data.to_pandas().to_pickle(out_directory+'/'+label+'.pkl')
         return
 
-    def encode_example(self, example, finetune = False, max_seq_length=512, pad_token_box=[0, 0, 0, 0]):
+    def encode_example(self, example, labels = None, max_seq_length=512, pad_token_box=[0, 0, 0, 0]):
 
         words = example['words']
         normalized_word_boxes = example['bbox']
@@ -194,91 +208,132 @@ class LayoutLM():
         token_boxes += [pad_token_box] * padding_length
         encoding['bbox'] = np.array(token_boxes)
 
-        if finetune == True: 
-            encoding['label'] = self.label2idx[example['label']]
+        if labels is not None: 
+            if isinstance(labels, str):
+                encoding['label_idx'] = self.label2idx[example['label']]
+            else:
+                special_tokens_count = 2 
+                label_int = example['label']
+                if len(label_int) > max_seq_length - special_tokens_count:
+                    label_int = label_int[: (max_seq_length - special_tokens_count)]
+
+                encoding['label_idx'] = np.array([-100] + [self.label2idx[x] for x in label_int] \
+                    + [-100] * (max_seq_length - len(label_int) - 1))
 
         return encoding
 
-    def get_hidden_state(self, datapoint):
+    def get_encodings(self, outpath = None, labels = None, directory = None, max_seq_length=512):
 
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        if directory is not None:
+            #Load data from pkls
+            dfs = glob.glob(directory + "/*")
+
+            i = 0
+            for df in dfs:
+                print(df)
+                label = re.match(r".+/(.*).pkl", df).group(1)
+                self.label2idx[label] = i
+                i += 1
+                self.ft_data = Dataset.from_pandas(pd.read_pickle(df))
+                if '__index_level_0__' in self.ft_data.features.keys():
+                    self.ft_data = self.ft_data.remove_columns('__index_level_0__')
+
+                features = Features({
+                'input_ids': Sequence(feature=Value(dtype='int64')),
+                'bbox': Array2D(dtype="int64", shape=(max_seq_length, 4)),
+                'attention_mask': Sequence(Value(dtype='int64')),
+                'token_type_ids': Sequence(Value(dtype='int64')),
+                'label_idx': ClassLabel(num_classes = len(self.label2idx.keys()), names = list(self.label2idx.values())),
+                'image_path': Value(dtype='string'),
+                'words': Sequence(feature=Value(dtype='string')),})
+
+                self.encodings = self.ft_data.map(lambda example: self.encode_example(example, labels), features = features)
+                self.encodings.set_format(type='torch', columns=['input_ids', 'bbox', 'attention_mask', 'token_type_ids'])
+                self.encodings.to_pandas().to_pickle(outpath+'/'+label+'.pkl')
+            
+            a_file = open(outpath + "/labels_dict.json", "w")
+            json.dump(self.label2idx, a_file)
+            a_file.close()
+            
+        else:
+
+            self.pt_data = Dataset.from_pandas(self.pt_data)
+            self.pt_data = self.pt_data.remove_columns('__index_level_0__')
+
+            if labels is not None:
+
+                self.label2idx = labels
+
+                a_file = open(outpath + "/labels_dict.json", "w")
+                json.dump(self.label2idx, a_file)
+                a_file.close()
+
+                features = Features({
+                    'input_ids': Sequence(feature=Value(dtype='int64')),
+                    'bbox': Array2D(dtype="int64", shape=(512, 4)),
+                    'attention_mask': Sequence(Value(dtype='int64')),
+                    'token_type_ids': Sequence(Value(dtype='int64')),
+                    'image_path': Value(dtype='string'),
+                    'words': Sequence(feature=Value(dtype='string')),
+                    'label': Sequence(feature=Value(dtype='string')),
+                    'label_idx': Sequence(feature=Value(dtype='int64')),
+                    })
+
+            else:
+                features = Features({
+                    'input_ids': Sequence(feature=Value(dtype='int64')),
+                    'bbox': Array2D(dtype="int64", shape=(512, 4)),
+                    'attention_mask': Sequence(Value(dtype='int64')),
+                    'token_type_ids': Sequence(Value(dtype='int64')),
+                    'image_path': Value(dtype='string'),
+                    'words': Sequence(feature=Value(dtype='string')),})
+
+            self.encodings = self.pt_data.map(lambda example: self.encode_example(example, labels), features = features)
+            self.encodings.set_format(type='torch', columns=['input_ids', 'bbox', 'attention_mask', 'token_type_ids'])
+
+            if outpath is not None:
+                self.encodings.to_pandas().to_pickle(outpath+'/enc_data.pkl')
+
+        return self.encodings
+
+    def get_example_hidden_state(self, datapoint, model, model_path):
 
         input_ids = datapoint["input_ids"].view(1, -1).to(device)
         bbox = datapoint["bbox"].view(1, -1, 4).to(device)
         attention_mask = datapoint["attention_mask"].view(1, -1).to(device)
         token_type_ids = datapoint["token_type_ids"].view(1, -1).to(device)
 
-        outputs = self.model(input_ids=input_ids, bbox=bbox, attention_mask=attention_mask, token_type_ids=token_type_ids.view(1, -1))        
+        outputs = model(input_ids=input_ids, bbox=bbox, attention_mask=attention_mask, token_type_ids=token_type_ids.view(1, -1))      
 
         datapoint['last_hidden_state'] = outputs.last_hidden_state[0]
 
         return datapoint
 
-    def get_encodings(self, outpath, \
-        finetune = False, directory = None, max_seq_length=512, pad_token_box=[0, 0, 0, 0]):
+    def get_hidden_state(self, outpath = None, model_path = None):
 
-        if finetune == True:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-            #Load data from pkls
-            dfs = glob.glob(directory + "/*")
-
-            i = 0
-            for df in dfs:
-                label = re.match(r".+/(.*).pkl", df).group(1)
-                self.label2idx[label] = i
-                i += 1
-                self.ft_data = Dataset.from_pandas(pd.read_pickle(df))
-
-                features = Features({
-                'input_ids': Sequence(feature=Value(dtype='int64')),
-                'bbox': Array2D(dtype="int64", shape=(512, 4)),
-                'attention_mask': Sequence(Value(dtype='int64')),
-                'token_type_ids': Sequence(Value(dtype='int64')),
-                'label': ClassLabel(num_classes = len(self.label2idx.keys()), names = list(self.label2idx.values())),
-                'image_path': Value(dtype='string'),
-                'words': Sequence(feature=Value(dtype='string')),})
-
-                self.encodings = self.ft_data.map(lambda example: self.encode_example(example, finetune), features = features)
-
-                self.encodings.set_format(type='torch', columns=['input_ids', 'bbox', 'attention_mask', 'token_type_ids'])
-
-                self.encodings.to_pandas().to_pickle(outpath+'/'+label+'.pkl')
-            
-            a_file = open(outpath + "/labels_dict.json", "w")
-            json.dump(self.label2idx, a_file)
-            a_file.close()
-
+        if model_path is not None:
+            model = LayoutLMModel.from_pretrained(model_path, local_files_only = True)
         else:
+            model = self.model
 
-            self.pt_data = Dataset.from_pandas(self.pt_data)
+        model.to(device)
 
-            self.pt_data = self.pt_data.remove_columns('__index_level_0__')
+        dataset = self.encodings.map(lambda example: self.get_example_hidden_state(example, model, model_path))
+        
+        if outpath is not None:
+            dataset.to_pandas().to_pickle(outpath)
+        
+        return dataset
 
-            features = Features({
-                'input_ids': Sequence(feature=Value(dtype='int64')),
-                'bbox': Array2D(dtype="int64", shape=(512, 4)),
-                'attention_mask': Sequence(Value(dtype='int64')),
-                'token_type_ids': Sequence(Value(dtype='int64')),
-                'image_path': Value(dtype='string'),
-                'words': Sequence(feature=Value(dtype='string')),})
-
-            self.encodings = self.pt_data.map(lambda example: self.encode_example(example), features = features)
-
-            self.encodings.set_format(type='torch', columns=['input_ids', 'bbox', 'attention_mask', 'token_type_ids'])
-
-            self.encodings = self.encodings.map(lambda example: self.get_hidden_state(example))
-
-            self.encodings.to_pandas().to_pickle(outpath)
-
-        return self.encodings
-
-    def fine_tune(self, input_dir, model_save_path, global_step = 0, num_train_epochs = 5):
+    def fine_tune(self, input_dir, model_save_path, token, batch_size = 5, num_train_epochs = 5, k = 1):
 
         #Bring in data
         dfs = glob.glob(input_dir + "/*.pkl")
 
         a_file = open(input_dir + "/labels_dict.json", "r")
-        self.label2idx = a_file.read()
+        self.label2idx = json.loads(a_file.read())
         a_file.close()
 
         datasets = []
@@ -291,25 +346,28 @@ class LayoutLM():
             int_df['bbox'] = int_df['bbox'].apply(lambda x: np.array(x))
 
             #Randomly sample train_data
-            print(df)
-            int_df = int_df.sample(n = 10)
+            #int_df = int_df.sample(n = 1)
 
             datasets.append(Dataset.from_pandas(int_df))
         
         train_data = concatenate_datasets(datasets)
 
-        train_data.set_format(type='torch', columns=['input_ids', 'attention_mask', 'token_type_ids', 'label', 'bbox'])
+        train_data.set_format(type='torch', columns=['input_ids', 'attention_mask', 'token_type_ids', 'label_idx', 'bbox'])
 
         train_size=len(train_data)
 
-        batch_size = 1
         dataloader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, shuffle=True)
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         #Put the model in training mode
-        self.model = LayoutLMForSequenceClassification.from_pretrained("microsoft/layoutlm-base-uncased", \
-            num_labels=len(self.label2idx))
+
+        if token:
+            self.model = LayoutLMForTokenClassification.from_pretrained("microsoft/layoutlm-base-uncased", \
+                num_labels=len(self.label2idx))   
+        else:
+            self.model = LayoutLMForSequenceClassification.from_pretrained("microsoft/layoutlm-base-uncased", \
+                num_labels=len(self.label2idx))
 
         self.model.to(device)
 
@@ -318,25 +376,36 @@ class LayoutLM():
         for epoch in range(num_train_epochs):
             print("Training Epoch:", epoch)
             running_loss = 0.0
+            total = 0
             correct = 0
             self.model.train()
             for batch in tqdm(dataloader):
                 input_ids = batch["input_ids"].to(device)
-                bbox = batch["bbox"].view(batch_size, 512, 4).to(device)
+                bbox = batch["bbox"].view(batch["bbox"].size()[0], 512, 4).to(device)
                 attention_mask = batch["attention_mask"].to(device)
                 token_type_ids = batch["token_type_ids"].to(device)
-                labels = batch["label"].view(batch_size, -1).to(device)
+                labels = batch["label_idx"].view(batch["label_idx"].size()[0], -1).to(device)
 
                 # forward pass
                 outputs = self.model(input_ids=input_ids, bbox=bbox, \
                     attention_mask=attention_mask, token_type_ids=token_type_ids, \
                     labels = labels)
 
-                loss = outputs.loss
+                loss = outputs.loss * batch["label_idx"].size()[0]
 
                 running_loss += loss.item()
                 predictions = outputs.logits.argmax(-1)
-                correct += (predictions == labels).float().sum()
+
+                if token: 
+                    for i in range(0, predictions.size()[0]):
+                        for j in range(0, predictions.size()[1]):
+                            if labels[i][j] != -100:
+                                total += 1
+                                if predictions[i][j] == labels[i][j]:
+                                    correct += 1
+
+                else:
+                    correct += (predictions == labels.view(labels.size()[1], labels.size()[0])).float().sum()
 
                 # backward pass to get the gradients 
                 loss.backward()
@@ -345,12 +414,20 @@ class LayoutLM():
                 optimizer.step()
                 optimizer.zero_grad()
         
-            print("Loss:", running_loss / batch["input_ids"].shape[0])
-            accuracy = 100 * correct / train_size
-            print("Training accuracy:", accuracy.item())
+            print("Loss:", running_loss / train_size)
 
-        #Save final model
-        torch.save(self.model.state_dict(), model_save_path)
+            if token:
+                accuracy = 100 * correct / total
+                print("Training accuracy:", accuracy)
+            else:
+                accuracy = 100 * correct / train_size
+                print("Training accuracy:", accuracy.item())
+
+            if ((epoch % k == 0) & (epoch > 0)):
+                new_dir = model_save_path + "/epoch" + str(epoch)
+                os.mkdir(new_dir)
+                self.model.save_pretrained(new_dir)
+
         return
 
 
@@ -358,22 +435,32 @@ if __name__ == '__main__':
 
     directory = '/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/rivlets'
 
-    #Without fine-tuning, just process json
-    i1 = LayoutLM()
-    i1.process_json(directory)
-    outpath = '/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/encodings/layoutlm_noft_encodings.pkl'
-    encodings = i1.get_encodings(outpath)
+    #NO FINE-TUNING, JUST PROCESS JSON FILE
+    #i1 = LayoutLM()
+    #i1.process_json(directory)
+    #outpath = '/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/encodings/layoutlm_noft_encodings.pkl'
+    #encodings = i1.get_encodings()
+    #hidden_state = i1.get_hidden_state(outpath= outpath)
+    #print(hidden_state.to_pandas())
 
-    #With fine-tuning
+    #FINE-TUNING
+    #in_directory = '/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/test'
+    #out_directory = '/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/test_int'
+    #i2 = LayoutLM()
+    #i2.process_ftdata(in_directory, out_directory)
+    #outpath = '/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/test_enc'
+    #i2.get_encodings(outpath, finetune = True, directory = out_directory)
+    #model_save_path = '/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/models/'
+    #i2.fine_tune(outpath, model_save_path, num_train_epochs = 1)
 
-    in_directory = '/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/test'
-    out_directory = '/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/test_int'
+    #outpath = '/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/encodings/layoutlm_noft_encodings.pkl'
 
-    i2 = LayoutLM()
-    i2.process_ftdata(in_directory, out_directory)
-
-    outpath = '/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/test_enc'
-    i2.get_encodings(outpath, finetune = True, directory = out_directory)
-
-    model_save_path = '/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/models/ft_model'
-    i2.fine_tune(outpath, model_save_path, global_step = 0, num_train_epochs = 5)
+    #Get hidden states using fine-tuned model
+    #i3 = LayoutLM()
+    #directory = '/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/rivlets'
+    #i3.process_json(directory)
+    #outpath = '/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/encodings/layoutlm_ft_encodings.pkl'
+    #model_path = '/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/models/fine_tuned_related'
+    #encodings = i3.get_encodings()
+    #hidden_state = i3.get_hidden_state(outpath = outpath, model_path = model_path)
+    #print(hidden_state.to_pandas())
