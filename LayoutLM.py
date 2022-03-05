@@ -230,7 +230,6 @@ class LayoutLM():
 
             i = 0
             for df in dfs:
-                print(df)
                 label = re.match(r".+/(.*).pkl", df).group(1)
                 self.label2idx[label] = i
                 i += 1
@@ -256,7 +255,6 @@ class LayoutLM():
             a_file.close()
             
         else:
-
             self.pt_data = Dataset.from_pandas(self.pt_data)
             self.pt_data = self.pt_data.remove_columns('__index_level_0__')
 
@@ -280,6 +278,7 @@ class LayoutLM():
                     })
 
             else:
+                self.pt_data = self.pt_data.remove_columns('label')
                 features = Features({
                     'input_ids': Sequence(feature=Value(dtype='int64')),
                     'bbox': Array2D(dtype="int64", shape=(512, 4)),
@@ -434,14 +433,6 @@ class LayoutLM():
 if __name__ == '__main__':
 
     directory = '/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/rivlets'
-
-    #NO FINE-TUNING, JUST PROCESS JSON FILE
-    #i1 = LayoutLM()
-    #i1.process_json(directory)
-    #outpath = '/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/encodings/layoutlm_noft_encodings.pkl'
-    #encodings = i1.get_encodings()
-    #hidden_state = i1.get_hidden_state(outpath= outpath)
-    #print(hidden_state.to_pandas())
 
     #FINE-TUNING
     #in_directory = '/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/test'
