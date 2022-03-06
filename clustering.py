@@ -28,8 +28,8 @@ from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.metrics import calinski_harabasz_score, classification_report, confusion_matrix, silhouette_score
 from sklearn.mixture import BayesianGaussianMixture
 
-from .plot_utils import display_scatterplot
-from .representations import CollectionRepresentations, RepresentationType, prepare_representations
+from lib.plot_utils import display_scatterplot
+from lib.representations import CollectionRepresentations, RepresentationType, prepare_representations
 
 logger = logging.getLogger(__name__)
 
