@@ -14,5 +14,10 @@ And should be stored with the following directory structure and names:
 
 ## Training and running models.
 
+## Get document embeddings from LayoutLM (and variants).
+`python get_hidden_states.py -r <rivlets_dir> <model_type>`
+
+`python get_hidden_states.py -r datasets/rvl-cdip/rvl_cdip_processed/base/rivlets/ vanilla_lmv1`
+
 ### Run unsupervised clustering
 `python clustering.py -p datasets/rvl-cdip`
