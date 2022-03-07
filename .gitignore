@@ -31,3 +31,5 @@ __pycache__
 
 datasets/rvl-cdip/*
 datasets/sroie2019/*
+data/
+models/
