@@ -21,3 +21,4 @@ dependencies:
     - 'git+https://github.com/facebookresearch/detectron2.git'
     - pytesseract
     - 'git+https://github.com/jhlau/gensim'
+    - -r requirements.txt

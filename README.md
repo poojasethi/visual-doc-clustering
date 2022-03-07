@@ -2,8 +2,8 @@
 
 ## Getting started
 
-### Install dependencies
-`pip install -r requirements.txt`
+### Install dependencies in a new conda environment.
+`conda env create --name local_env --file=local_env.yml`
 
 ### Download datasets
 Datasets are available for download [here](https://drive.google.com/drive/folders/1yjovBe7blrTmarF39wk6P_gUwmT0bfk-?usp=sharing).
