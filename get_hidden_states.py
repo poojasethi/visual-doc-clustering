@@ -23,7 +23,6 @@ def get_parser() -> argparse.ArgumentParser:
         type=str,
         help="The type of model to obtain embeddings from",
     )
-
     parser.add_argument(
         "-r",
         "--rivlets-dir",
@@ -32,18 +31,19 @@ def get_parser() -> argparse.ArgumentParser:
         required=True,
     )
     parser.add_argument(
-        "-h",
-        "--hidden-dir",
+        "-e",
+        "--embedding-dir",
         type=existing_directory,
-        help="Path to directory where hidden states will be pickled and stored",
+        help="Path to directory where hidden states will be pickled and stored.",
         default="embeddings/",
     )
+
     parser.add_argument(
         "-m",
-        "--model_path",
+        "--models-dir",
         type=existing_directory,
-        help="Path to directory containing trained models",
-        defualt="models/",
+        help="Path to directory containing trained models.",
+        default="models/",
     )
     return parser
 
@@ -52,7 +52,7 @@ def main(args: argparse.Namespace):
     # PUT DIRECTORY OF RIVLETS HERE
     # rivlets_dir = "/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/rivlets"
     rivlets_dir = args.rivlets_dir
-    hidden_dir = args.hidden_dir
+    embedding_dir = args.embedding_dir
 
     # OUTPUT VANILLA LM HIDDEN STATES
     if args.model == "vanilla_lmv1":
@@ -60,7 +60,7 @@ def main(args: argparse.Namespace):
         int_data = i1.process_json(rivlets_dir, "processed_word", "location", position_processing=True)
 
         # outpath = "/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/encodings/layoutlm_noft_encodings.pkl"
-        outpath = args.hidden_dir / "layoutlm_noft_encodings.pkl"
+        outpath = args.embedding_dir / "layoutlm_noft_encodings.pkl"
 
         encodings = i1.get_encodings()
         hidden_state = i1.get_hidden_state(outpath=outpath)
@@ -73,7 +73,7 @@ def main(args: argparse.Namespace):
 
         # outpath = "/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/encodings/layoutlm_ft_encodings.pkl"
         # model_path = "/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/models/fine_tuned_related/epoch7"
-        outpath = args.hidden_dir / "layoutlm_ft_encodings.pkl"
+        outpath = args.embedding_dir / "layoutlm_ft_encodings.pkl"
         model_path = args.model_dir / "fine_tune_related" / "epoch7"
 
         encodings = i2.get_encodings()
@@ -87,7 +87,7 @@ def main(args: argparse.Namespace):
 
         # outpath = "/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/encodings/layoutlm_ft_ur_encodings.pkl"
         # model_path = "/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/models/fine_tuned_unrelated/epoch15"
-        outpath = args.hidden_dir / "layoutlm_ft_ur_encodings.pkl"
+        outpath = args.embedding_dir / "layoutlm_ft_ur_encodings.pkl"
         model_path = args.model_dir / "fine_tune_unrelated" / "epoch7"
 
         encodings = i3.get_encodings()
