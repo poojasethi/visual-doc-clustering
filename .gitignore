@@ -21,8 +21,6 @@ tags
 tags.lock
 tags.temp
 
-224n/* # virtualenv
-224n/
 .DS_Store
 **/.DS_Store
 
@@ -31,5 +29,6 @@ __pycache__
 
 datasets/rvl-cdip/*
 datasets/sroie2019/*
+
 data/
 models/
