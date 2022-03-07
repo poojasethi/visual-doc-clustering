@@ -158,14 +158,22 @@ class LayoutLM:
                     words.append(data[word_label])
 
                     if position_processing == True:
+                        # top-left corner is (x0, y0)
+                        # bottom-right corner is (x1, y1)
+                        # breakpoint()
                         positions.append(
                             [
-                                int(data[position_label]["left"] * 1000),
-                                int((data[position_label]["top"] - data[position_label]["height"]) * 1000),
-                                int((data[position_label]["left"] + data[position_label]["width"]) * 1000),
-                                int(data[position_label]["top"] * 1000),
+                                # int(data[position_label]["left"] * 1000),  # x0
+                                # int((data[position_label]["top"] - data[position_label]["height"]) * 1000),  # y0
+                                # int((data[position_label]["left"] + data[position_label]["width"]) * 1000),  # x1
+                                # int(data[position_label]["top"] * 1000),  # y1
+                                int(data[position_label]["left"]) * 1000,  # x0
+                                int(data[position_label]["top"]) * 1000,  # y0
+                                int((data[position_label]["left"] + data[position_label]["width"])) * 1000,  # x1
+                                int((data[position_label]["top"] + data[position_label]["height"])) * 1000,  # y1
                             ]
                         )
+                        # TODO: Normalize coordinates.
                     else:
                         positions.append(data[position_label])
 
@@ -293,6 +301,9 @@ class LayoutLM:
         token_boxes += [pad_token_box] * padding_length
         encoding["bbox"] = np.array(token_boxes)
 
+        # if np.any(encoding["bbox"] > 1000):
+        #     breakpoint()
+
         if labels is not None:
             if isinstance(labels, str):
                 encoding["label_idx"] = self.label2idx[example["label"]]
@@ -406,11 +417,14 @@ class LayoutLM:
         return self.encodings
 
     def __get_example_hidden_state(self, datapoint, model, model_path):
-
         input_ids = datapoint["input_ids"].view(1, -1).to(device)
         bbox = datapoint["bbox"].view(1, -1, 4).to(device)
         attention_mask = datapoint["attention_mask"].view(1, -1).to(device)
         token_type_ids = datapoint["token_type_ids"].view(1, -1).to(device)
+
+        if torch.any(datapoint["bbox"] > 1000).item() or torch.any(datapoint["bbox"] < 0).item():
+            print(bbox.tolist())
+            raise ValueError("bbox values must be between [0, 1000]")
 
         outputs = model(
             input_ids=input_ids, bbox=bbox, attention_mask=attention_mask, token_type_ids=token_type_ids.view(1, -1)
