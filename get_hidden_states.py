@@ -46,13 +46,7 @@ def get_parser() -> argparse.ArgumentParser:
         default="models/",
     )
 
-    parser.add_argument(
-        "-b",
-        "--batch-size",
-        type=int,
-        help="Number of examples to pass to the model",
-        default="models/",
-    )
+    parser.add_argument("-b", "--batch-size", type=int, help="Number of examples to get hidden states for at one time")
     return parser
 
 
@@ -71,7 +65,8 @@ def main(args: argparse.Namespace):
         outpath = args.embedding_dir / "layoutlm_noft_encodings.pkl"
 
         encodings = i1.get_encodings()
-        hidden_state = i1.get_hidden_state(outpath=outpath, batch_size=batch_size)
+        hidden_state = i1.get_hidden_state(outpath=outpath, batch_size=args.batch_size)
+        breakpoint()
         print(hidden_state.to_pandas())
 
     # OUTPUT FINE-TUNED HIDDEN STATES (RELATED TASK)
@@ -82,7 +77,7 @@ def main(args: argparse.Namespace):
         # outpath = "/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/encodings/layoutlm_ft_encodings.pkl"
         # model_path = "/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/models/fine_tuned_related/epoch7"
         outpath = args.embedding_dir / "layoutlm_ft_encodings.pkl"
-        model_path = args.model_dir / "fine_tune_related" / "epoch7"
+        model_path = args.model_dir / "fine_tune_related_v2"
 
         encodings = i2.get_encodings()
         hidden_state = i2.get_hidden_state(outpath=outpath, model_path=model_path)
@@ -96,7 +91,7 @@ def main(args: argparse.Namespace):
         # outpath = "/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/encodings/layoutlm_ft_ur_encodings.pkl"
         # model_path = "/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/models/fine_tuned_unrelated/epoch15"
         outpath = args.embedding_dir / "layoutlm_ft_ur_encodings.pkl"
-        model_path = args.model_dir / "fine_tune_unrelated" / "epoch7"
+        model_path = args.model_dir / "fine_tune_unrelated"
 
         encodings = i3.get_encodings()
         hidden_state = i3.get_hidden_state(outpath=outpath, model_path=model_path)
