@@ -45,6 +45,14 @@ def get_parser() -> argparse.ArgumentParser:
         help="Path to directory containing trained models.",
         default="models/",
     )
+
+    parser.add_argument(
+        "-b",
+        "--batch-size",
+        type=int,
+        help="Number of examples to pass to the model",
+        default="models/",
+    )
     return parser
 
 
@@ -63,7 +71,7 @@ def main(args: argparse.Namespace):
         outpath = args.embedding_dir / "layoutlm_noft_encodings.pkl"
 
         encodings = i1.get_encodings()
-        hidden_state = i1.get_hidden_state(outpath=outpath)
+        hidden_state = i1.get_hidden_state(outpath=outpath, batch_size=batch_size)
         print(hidden_state.to_pandas())
 
     # OUTPUT FINE-TUNED HIDDEN STATES (RELATED TASK)
