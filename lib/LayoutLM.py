@@ -141,8 +141,13 @@ class LayoutLM:
         files = Path(directory).rglob("*.json")
 
         i = 0
+        max_files = 10
 
         for f in files:
+            if i > max_files:
+                print(f"Debugging, only loading {max_files} files!")
+                break
+
             words = []
             positions = []
             labels = []
