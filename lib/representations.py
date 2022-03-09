@@ -1,13 +1,17 @@
 import json
 from collections import defaultdict
 from enum import Enum
+from functools import cached_property
 from logging import getLogger
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 from attr import define, field
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+
+from lib.LayoutLM import LayoutLM
+from lib.LayoutLMv2 import LayoutLMv2
 
 from .path_utils import list_dirnames, only_file, walk
 
@@ -17,7 +21,7 @@ logger = getLogger(__name__)
 class RepresentationType(str, Enum):
     RIVLET_COUNT = "rivlet_count"
     RIVLET_TFIDF = "rivlet_tfidf"
-    LAYOUT_LM = "layout_lm"
+    LAYOUT_LM = "vanilla_lmv1"
 
 
 @define
@@ -26,6 +30,9 @@ class DocumentRepresentation:
 
     # Path to first (0th) page of the document. Useful for displaying previews.
     first_page_path: Path
+
+    # Pah to the original rivlets.json file for this document.
+    rivlet_path: Path
 
     # All of the rivlets joined together into one "paragraph".
     rivlet_stream: str = field(init=False)
@@ -65,7 +72,9 @@ class Document:
 CollectionRepresentations = Dict[str, Dict[str, DocumentRepresentation]]
 
 
-def prepare_representations(data_path: str, rep_type: str) -> CollectionRepresentations:
+def prepare_representations(
+    data_path: str, rep_type: str, models_dir: Optional[Path] = None
+) -> CollectionRepresentations:
     """
     Returns a mapping of collection to document (file) to vectorized representation.
     """
@@ -93,7 +102,9 @@ def prepare_representations(data_path: str, rep_type: str) -> CollectionRepresen
                     with open(rivlets_file) as fh:
                         rivlets = json.loads(fh.read())
                         data[collection][file_id] = DocumentRepresentation(
-                            rivlets=rivlets, first_page_path=first_page_file
+                            rivlets=rivlets,
+                            rivlet_path=rivlets_file,
+                            first_page_path=first_page_file,
                         )
         except Exception as e:
             logger.warning(e)
@@ -105,7 +116,7 @@ def prepare_representations(data_path: str, rep_type: str) -> CollectionRepresen
     elif rep_type == RepresentationType.RIVLET_TFIDF:
         data = prepare_representations_for_rivlet_tfidf(data)
     elif rep_type == RepresentationType.LAYOUT_LM:
-        data = prepare_representations_for_layout_lm(data_path)
+        data = prepare_representations_for_layout_lmv1(data)
     else:
         raise ValueError(f"Unknown representation type: {rep_type}")
 
@@ -144,5 +155,18 @@ def prepare_representations_for_rivlet_tfidf(data: CollectionRepresentations) ->
     return data
 
 
-def prepare_representations_for_layout_lm(data_path: str) -> CollectionRepresentations:
-    raise NotImplementedError()
+def prepare_representations_for_layout_lmv1(
+    data: CollectionRepresentations, model_path: Optional[Path] = None
+) -> CollectionRepresentations:
+    lm = LayoutLM()
+
+    for documents in data.values():
+        for doc, representation in documents.items():
+            lm.process_json(representation.rivlet_path, "processed_word", "location", position_processing=True)
+            lm.get_encodings()
+            # TODO(pooja):  Hidden state  is a 512 x 768 vector. 512 is the length of the sequence and we need to average across this dimension. There are different things we can try here.
+            hidden_state = lm.get_hidden_state(model_path)
+            representation.vectorized[RepresentationType.LAYOUT_LM] = hidden_state["last_hidden_state"][0][0].numpy()
+            documents[doc] = representation
+
+    return data

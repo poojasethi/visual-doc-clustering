@@ -121,12 +121,10 @@ class LayoutLM:
         self.label2idx = {}
         self.ft_data = pd.DataFrame()
 
-    def process_json(
-        self, directory, word_label, position_label, label_label=None, position_processing=False, funsd=False
-    ):
+    def process_json(self, path, word_label, position_label, label_label=None, position_processing=False, funsd=False):
         """
         Args:
-            directory: directory path of json files which you which to process
+            path: directory path of json files which you which to process, or a path to a single file
             word_label: label that words are saved under in json file
             position_label: label that bounding boxes or position coordinates are saved under in json file
             label_label: label that token labels are saved under in json file
@@ -137,8 +135,12 @@ class LayoutLM:
             Dataframe with image path, words, bbox, label
         """
         # Import Files
+        path = Path(path)
 
-        files = Path(directory).rglob("*.json")
+        if path.is_dir():
+            files = path.rglob("*.json")
+        else:
+            files = [path]
 
         i = 0
         max_files = 10
@@ -436,6 +438,7 @@ class LayoutLM:
         )
 
         datapoint["last_hidden_state"] = outputs.last_hidden_state[0]
+        breakpoint()
 
         return datapoint
 
