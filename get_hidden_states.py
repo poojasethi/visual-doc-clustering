@@ -74,7 +74,7 @@ def main(args: argparse.Namespace):
         # outpath = "/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/encodings/layoutlm_ft_encodings.pkl"
         # model_path = "/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/models/fine_tuned_related/epoch7"
         outpath = args.embedding_dir / "layoutlm_ft_encodings.pkl"
-        model_path = args.model_dir / "fine_tune_related" / "epoch7"
+        model_path = args.models_dir / "fine_tune_related"
 
         encodings = i2.get_encodings()
         hidden_state = i2.get_hidden_state(outpath=outpath, model_path=model_path)
@@ -88,7 +88,7 @@ def main(args: argparse.Namespace):
         # outpath = "/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/encodings/layoutlm_ft_ur_encodings.pkl"
         # model_path = "/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/models/fine_tuned_unrelated/epoch15"
         outpath = args.embedding_dir / "layoutlm_ft_ur_encodings.pkl"
-        model_path = args.model_dir / "fine_tune_unrelated" / "epoch7"
+        model_path = args.models_dir / "fine_tuned_unrelated2"
 
         encodings = i3.get_encodings()
         hidden_state = i3.get_hidden_state(outpath=outpath, model_path=model_path)
