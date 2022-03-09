@@ -66,7 +66,6 @@ def main(args: argparse.Namespace):
 
         encodings = i1.get_encodings()
         hidden_state = i1.get_hidden_state(outpath=outpath, batch_size=args.batch_size)
-        breakpoint()
         print(hidden_state.to_pandas())
 
     # OUTPUT FINE-TUNED HIDDEN STATES (RELATED TASK)

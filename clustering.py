@@ -215,7 +215,7 @@ def get_parser() -> argparse.ArgumentParser:
         "--representation",
         type=str,
         help="Document representation",
-        choices=["rivlet_count", "rivlet_tfidf"],  # Must be a member of RepresentationType
+        choices=["rivlet_count", "rivlet_tfidf", "vanilla_lmv1"],  # Must be a member of RepresentationTypek
         default="rivlet_count",
     )
     parser.add_argument(
