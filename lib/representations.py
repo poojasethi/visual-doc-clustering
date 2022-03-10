@@ -7,7 +7,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
+import torch
 from attr import define, field
+from nptyping import NDArray
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
 from lib.LayoutLM import LayoutLM
@@ -22,6 +24,13 @@ class RepresentationType(str, Enum):
     RIVLET_COUNT = "rivlet_count"
     RIVLET_TFIDF = "rivlet_tfidf"
     LAYOUT_LM = "vanilla_lmv1"
+
+
+class SquashStrategy(str, Enum):
+    AVERAGE_ALL_WORDS = "average_all_words"
+    AVERAGE_ALL_WORDS_MASK_PADS = "average_all_words_mask_pads"
+    AVERAGE_ALL_WORDS_MASK_PADS_PAD_LENGTH = "average_all_words_mask_pads_pad_length"
+    UNROLL_WORDS = "unroll_words"
 
 
 @define
@@ -156,7 +165,9 @@ def prepare_representations_for_rivlet_tfidf(data: CollectionRepresentations) ->
 
 
 def prepare_representations_for_layout_lmv1(
-    data: CollectionRepresentations, model_path: Optional[Path] = None
+    data: CollectionRepresentations,
+    model_path: Optional[Path] = None,
+    squash_strategy=SquashStrategy.AVERAGE_ALL_WORDS,
 ) -> CollectionRepresentations:
     lm = LayoutLM()
 
@@ -165,8 +176,31 @@ def prepare_representations_for_layout_lmv1(
             lm.process_json(representation.rivlet_path, "processed_word", "location", position_processing=True)
             lm.get_encodings()
             # TODO(pooja):  Hidden state  is a 512 x 768 vector. 512 is the length of the sequence and we need to average across this dimension. There are different things we can try here.
-            hidden_state = lm.get_hidden_state(model_path)
-            representation.vectorized[RepresentationType.LAYOUT_LM] = hidden_state["last_hidden_state"][0][0].numpy()
+            dataset = lm.get_hidden_state(model_path)
+            hidden_states = torch.stack(dataset["last_hidden_state"][0]).numpy()
+            attention_mask = dataset["attention_mask"][0].numpy()
+
+            representation.vectorized[RepresentationType.LAYOUT_LM] = squash_hidden_states(
+                hidden_states, attention_mask, squash_strategy
+            )
             documents[doc] = representation
 
     return data
+
+
+def squash_hidden_states(hidden_states: NDArray, attention_mask: NDArray, squash_strategy: SquashStrategy) -> NDArray:
+    """
+    Squashes hidden_state matrix into a vector.
+    """
+    if squash_strategy == SquashStrategy.AVERAGE_ALL_WORDS:
+        return np.mean(hidden_states, axis=0)
+    elif squash_strategy == SquashStrategy.AVERAGE_ALL_WORDS_MASK_PADS:
+        # return np.mean(hidden_states, axis=0)
+        pass
+    elif squash_strategy == SquashStrategy.AVERAGE_ALL_WORDS_MASK_PADS_PAD_LENGTH:
+        # return np.mean()
+        pass
+    elif squash_strategy == SquashStrategy.UNROLL_WORDS:
+        pass
+    else:
+        raise ValueError(f"Unknown squash strategy: {squash_strategy}")
