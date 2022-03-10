@@ -121,9 +121,14 @@ class LayoutLM:
         self.label2idx = {}
         self.ft_data = pd.DataFrame()
 
-    def process_json(
-        self, directory, word_label, position_label, label_label=None, position_processing=False, funsd=False
-    ):
+    def reset_preprocessed_data(self):
+        self.pt_data = pd.DataFrame(columns=["image_path", "words", "bbox", "label"])
+        self.pt_data["words"] = self.pt_data["words"].astype("object")
+        self.pt_data["bbox"] = self.pt_data["bbox"].astype("object")
+        self.pt_data["label"] = self.pt_data["label"].astype("object")
+        self.encoding = pd.DataFrame()
+
+    def process_json(self, path, word_label, position_label, label_label=None, position_processing=False, funsd=False):
         """
         Args:
             path: directory path of json files which you which to process, or a path to a single file

@@ -11,6 +11,7 @@ import torch
 from attr import define, field
 from nptyping import NDArray
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from tqdm import tqdm
 
 from lib.LayoutLM import LayoutLM
 from lib.LayoutLMv2 import LayoutLMv2
@@ -47,7 +48,7 @@ class DocumentRepresentation:
     rivlet_stream: str = field(init=False)
 
     # Mapping of representation type to vector. A document can have many possible representations.
-    vectorized: Dict[str, np.array] = field(init=False)
+    vectorized: Dict[str, NDArray] = field(init=False)
 
     # Mapping of representation type to cluster assignment.
     cluster: Dict[str, int] = field(init=False)
@@ -170,20 +171,20 @@ def prepare_representations_for_layout_lmv1(
     squash_strategy=SquashStrategy.AVERAGE_ALL_WORDS,
 ) -> CollectionRepresentations:
     lm = LayoutLM()
-
-    for documents in data.values():
-        for doc, representation in documents.items():
+    for collection in data.values():
+        for doc, representation in tqdm(collection.items()):
             lm.process_json(representation.rivlet_path, "processed_word", "location", position_processing=True)
             lm.get_encodings()
-            # TODO(pooja):  Hidden state  is a 512 x 768 vector. 512 is the length of the sequence and we need to average across this dimension. There are different things we can try here.
-            dataset = lm.get_hidden_state(model_path)
-            hidden_states = torch.stack(dataset["last_hidden_state"][0]).numpy()
-            attention_mask = dataset["attention_mask"][0].numpy()
+
+            data = lm.get_hidden_state(model_path)
+            hidden_states = torch.stack(data["last_hidden_state"][0]).numpy()
+            attention_mask = data["attention_mask"][0].numpy()
 
             representation.vectorized[RepresentationType.LAYOUT_LM] = squash_hidden_states(
                 hidden_states, attention_mask, squash_strategy
             )
-            documents[doc] = representation
+            collection[doc] = representation
+            lm.reset_preprocessed_data()
 
     return data
 
