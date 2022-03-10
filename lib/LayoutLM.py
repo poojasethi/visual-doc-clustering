@@ -122,7 +122,7 @@ class LayoutLM:
         self.ft_data = pd.DataFrame()
 
     def process_json(
-        self, directory, word_label, position_label, label_label=None, position_processing=False, funsd=False
+        self, directory, word_label, position_label, label_label=None, position_processing=False, token=False
     ):
         """
         Args:
@@ -150,8 +150,13 @@ class LayoutLM:
             with open(f, "r") as json_file:
                 json_data = json.load(json_file)
 
-                if funsd == True:
+                if token == True:
                     json_data = json_data["form"]
+                    for data in json_data:
+                        for w in data['words']:
+                            words.append(w[word_label])
+                            positions.append(w[position_label])
+                            labels.append(data[label_label])
 
                 for data in json_data:
 
