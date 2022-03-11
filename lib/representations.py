@@ -168,7 +168,7 @@ def prepare_representations_for_rivlet_tfidf(data: CollectionRepresentations) ->
 def prepare_representations_for_layout_lmv1(
     data: CollectionRepresentations,
     model_path: Optional[Path] = None,
-    squash_strategy=SquashStrategy.AVERAGE_ALL_WORDS_MASK_PADS,
+    squash_strategy=SquashStrategy.LAST_WORD,
 ) -> CollectionRepresentations:
     lm = LayoutLM()
     for collection in data.values():
@@ -196,8 +196,17 @@ def squash_hidden_states(hidden_states: NDArray, attention_mask: NDArray, squash
     if squash_strategy == SquashStrategy.AVERAGE_ALL_WORDS:
         return np.mean(hidden_states, axis=0)
     elif squash_strategy == SquashStrategy.AVERAGE_ALL_WORDS_MASK_PADS:
-        return np.mean(hidden_states, axis=0)
+        non_pad_words = np.expand_dims(attention_mask, axis=1) * hidden_states
+        average = np.mean(non_pad_words, axis=0)
+        sequence_length = np.sum(attention_mask)
+        output = np.append(average, sequence_length)
+        return output
     elif squash_strategy == SquashStrategy.LAST_WORD:
-        pass
+        sequence_length = np.sum(attention_mask)
+        last_word_mask = np.zeros(attention_mask.shape[0])
+        last_word_mask[sequence_length - 1] = 1
+        last_word = np.sum(np.expand_dims(last_word_mask, axis=1) * hidden_states, axis=0)
+        output = np.append(last_word, sequence_length)
+        return output
     else:
         raise ValueError(f"Unknown squash strategy: {squash_strategy}")
