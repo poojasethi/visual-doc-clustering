@@ -30,7 +30,7 @@ class RepresentationType(str, Enum):
 class SquashStrategy(str, Enum):
     AVERAGE_ALL_WORDS = "average_all_words"
     AVERAGE_ALL_WORDS_MASK_PADS = "average_all_words_mask_pads"
-    AVERAGE_ALL_WORDS_MASK_PADS_PAD_LENGTH = "average_all_words_mask_pads_pad_length"
+    LAST_WORD = "last_word"
     UNROLL_WORDS = "unroll_words"
 
 
@@ -168,7 +168,7 @@ def prepare_representations_for_rivlet_tfidf(data: CollectionRepresentations) ->
 def prepare_representations_for_layout_lmv1(
     data: CollectionRepresentations,
     model_path: Optional[Path] = None,
-    squash_strategy=SquashStrategy.AVERAGE_ALL_WORDS,
+    squash_strategy=SquashStrategy.AVERAGE_ALL_WORDS_MASK_PADS,
 ) -> CollectionRepresentations:
     lm = LayoutLM()
     for collection in data.values():
@@ -176,9 +176,9 @@ def prepare_representations_for_layout_lmv1(
             lm.process_json(representation.rivlet_path, "processed_word", "location", position_processing=True)
             lm.get_encodings()
 
-            data = lm.get_hidden_state(model_path)
-            hidden_states = torch.stack(data["last_hidden_state"][0]).numpy()
-            attention_mask = data["attention_mask"][0].numpy()
+            lm_data = lm.get_hidden_state(model_path)
+            hidden_states = torch.stack(lm_data["last_hidden_state"][0]).numpy()
+            attention_mask = lm_data["attention_mask"][0].numpy()
 
             representation.vectorized[RepresentationType.LAYOUT_LM] = squash_hidden_states(
                 hidden_states, attention_mask, squash_strategy
@@ -196,12 +196,8 @@ def squash_hidden_states(hidden_states: NDArray, attention_mask: NDArray, squash
     if squash_strategy == SquashStrategy.AVERAGE_ALL_WORDS:
         return np.mean(hidden_states, axis=0)
     elif squash_strategy == SquashStrategy.AVERAGE_ALL_WORDS_MASK_PADS:
-        # return np.mean(hidden_states, axis=0)
-        pass
-    elif squash_strategy == SquashStrategy.AVERAGE_ALL_WORDS_MASK_PADS_PAD_LENGTH:
-        # return np.mean()
-        pass
-    elif squash_strategy == SquashStrategy.UNROLL_WORDS:
+        return np.mean(hidden_states, axis=0)
+    elif squash_strategy == SquashStrategy.LAST_WORD:
         pass
     else:
         raise ValueError(f"Unknown squash strategy: {squash_strategy}")
