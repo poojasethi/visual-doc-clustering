@@ -47,6 +47,7 @@ def get_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument("-b", "--batch-size", type=int, help="Number of examples to get hidden states for at one time")
+    parser.add_argument("-f", "--file-type", type = str, help="Image file type e.g. png, tif, jpg")
     return parser
 
 
@@ -97,12 +98,12 @@ def main(args: argparse.Namespace):
         print(hidden_state.to_pandas())
 
     # OUTPUT VANILLA LM V2 HIDDEN STATES
-    elif args.model == "finetuned_lmv2_related":
+    elif args.model == "vanilla_lmv2":
         i4 = LayoutLMv2()
         # rivlets_dir  = "/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/files"
-
-        hidden_state = i4.get_outputs(rivlets_dir)
-        print(hidden_state)
+        outpath = args.embedding_dir / "layoutlmv2_noft_encodings.pkl"
+        hidden_state = i4.get_outputs(rivlets_dir, outpath = outpath, file_type = args.file_type)
+        print(hidden_state.to_pandas())
 
 
 if __name__ == "__main__":

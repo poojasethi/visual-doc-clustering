@@ -28,8 +28,6 @@ class RepresentationType(str, Enum):
     RIVLET_COUNT = "rivlet_count"
     RIVLET_TFIDF = "rivlet_tfidf"
     LAYOUT_LM = "vanilla_lmv1"
-<<<<<<< HEAD
-=======
 
 
 class SquashStrategy(str, Enum):
@@ -37,7 +35,6 @@ class SquashStrategy(str, Enum):
     AVERAGE_ALL_WORDS_MASK_PADS = "average_all_words_mask_pads"
     AVERAGE_ALL_WORDS_MASK_PADS_PAD_LENGTH = "average_all_words_mask_pads_pad_length"
     UNROLL_WORDS = "unroll_words"
->>>>>>> 37ab2b6af87a76d25b7d3d0f51c3ee036d80ea2f
 
 
 @define
@@ -172,22 +169,6 @@ def prepare_representations_for_rivlet_tfidf(data: CollectionRepresentations) ->
 
 
 def prepare_representations_for_layout_lmv1(
-<<<<<<< HEAD
-    data: CollectionRepresentations, model_path: Optional[Path] = None
-) -> CollectionRepresentations:
-    lm = LayoutLM()
-
-    for documents in data.values():
-        for doc, representation in documents.items():
-            lm.process_json(representation.rivlet_path, "processed_word", "location", position_processing=True)
-            lm.get_encodings()
-            # TODO(pooja):  Hidden state  is a 512 x 768 vector. 512 is the length of the sequence and we need to average across this dimension. There are different things we can try here.
-            hidden_state = lm.get_hidden_state(model_path)
-            representation.vectorized[RepresentationType.LAYOUT_LM] = hidden_state["last_hidden_state"][0][0].numpy()
-            documents[doc] = representation
-
-    return data
-=======
     data: CollectionRepresentations,
     model_path: Optional[Path] = None,
     squash_strategy=SquashStrategy.AVERAGE_ALL_WORDS,
@@ -227,4 +208,3 @@ def squash_hidden_states(hidden_states: NDArray, attention_mask: NDArray, squash
         pass
     else:
         raise ValueError(f"Unknown squash strategy: {squash_strategy}")
->>>>>>> 37ab2b6af87a76d25b7d3d0f51c3ee036d80ea2f

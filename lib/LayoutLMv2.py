@@ -3,9 +3,12 @@ from PIL import Image
 import torch
 from typing import List, Tuple, Dict, Set, Union
 import json
-import pytesseract
 import glob
 import re
+from pathlib import Path
+import pandas as pd
+import numpy as np
+from datasets import Array2D, Array3D, Array4D, ClassLabel, Dataset, Features, Sequence, Value, concatenate_datasets
 
 class LayoutLMv2():
     """ Get embeddings for LayoutLMv2
@@ -36,31 +39,74 @@ class LayoutLMv2():
         self.processor = LayoutLMv2Processor.from_pretrained("microsoft/layoutlmv2-base-uncased")
         self.model = LayoutLMv2Model.from_pretrained("microsoft/layoutlmv2-base-uncased")
 
-        self.doc_encoding = {}
+        self.encoding = pd.DataFrame()
 
-    def get_outputs(self, directory) -> dict:
+    def __get_encodings(self, example):
+        
+        image = Image.open(example["image_path"]).convert("RGB")
+        encoding = self.processor(image, padding="max_length", truncation=True)
+        example["token_type_ids"] = encoding.token_type_ids[0]
+        example["attention_mask"] = encoding.attention_mask[0]
+        example["bbox"] = encoding.bbox[0]
+        example["image"] = np.array(encoding.image[0])
+        example["input_ids"] = encoding.input_ids[0]
+        return example
 
-        #Import Image Files
-        files = glob.glob(directory + '/**/*.png', recursive=True)
+    def __get_hidden_states(self, example, model = None):
+        image = Image.open(example["image_path"]).convert("RGB")
+        outputs = self.model(**self.processor(image, padding="max_length", truncation=True, return_tensors = "pt"))
+        example["last_hidden_state"] = outputs.last_hidden_state[0]
+        return example
 
-        #Select just one image to use -- need to do more research into whether 
-        #we can use more than one page
-        image_paths = [re.match(r"(.+)/pages/0/(.*)", f).group(0) for f in files \
-            if re.match(r"(.+)/pages/0/(.*)", f) is not None]
 
-        for ip in image_paths:
+    def get_outputs(self, directory, model = None, outpath = None, file_type = "png"):
 
-            #docname = re.match(r"^.+/(.*)", ip).group(1)
+        # Import Files
+        path = Path(directory)
 
-            image = Image.open(ip).convert("RGB")                
+        if path.is_dir():
+            files = path.rglob("*." + file_type)
+        else:
+            files = [path]
+
+        #Select just one image to use -- need to think about whether we want to use more than 1 page
+        #Should we concatenate the two hidden states?
+        image_paths = [re.match(r"(.+)/pages/0/(.*)", str(f)).group(0) for f in [*files] \
+            if re.match(r"(.+)/pages/0/(.*)", str(f)) is not None]
+
+        #Testing a smaller number of images at the moment
+        i = 0
+        for ip in image_paths[:5]:
+            self.encoding.at[i, "image_path"] = ip
+            i += 1
+
+        #Encode via mapping
+        self.encoding = Dataset.from_pandas(self.encoding).remove_columns("__index_level_0__")
             
-            encoding = self.processor(image, return_tensors="pt")
-            
-            outputs = self.model(**encoding)
+        features = Features(
+            {
+            #"image": Sequence(Sequence(Sequence(Sequence(Value(dtype="uint8"))))),
+            "image": Array3D(dtype="int64", shape=(3, 224, 224)),
+            'input_ids': Sequence(Value(dtype='int64')),
+            "bbox": Array2D(dtype="int64", shape=(512, 4)),
+            "attention_mask": Sequence(Value(dtype="int64")),
+            "token_type_ids": Sequence(Value(dtype="int64")),
+            "image_path": Value(dtype="string"),
+            }
+            )    
 
-            self.doc_encoding[ip] = outputs.last_hidden_state
+        self.int_data = self.encoding.map(lambda example: self.__get_encodings(example), features=features)
 
-        return self.doc_encoding
+        if model is None:
+            model = self.model
+        self.fin_data = self.int_data.map(lambda example: self.__get_hidden_states(example, model))
+
+        self.fin_data.set_format(type="torch", columns=["image", "bbox", "attention_mask", "token_type_ids", "input_ids"])
+
+        if outpath is not None:
+            self.fin_data.to_pandas().to_pickle(outpath)
+
+        return self.fin_data
 
 if __name__ == '__main__':
 
