@@ -128,7 +128,9 @@ class LayoutLM:
         self.pt_data["label"] = self.pt_data["label"].astype("object")
         self.encoding = pd.DataFrame()
 
-    def process_json(self, path, word_label, position_label, label_label=None, position_processing=False, funsd=False):
+    def process_json(
+        self, path, word_label, position_label, label_label=None, position_processing=False, funsd=False, token=False
+    ):
         """
         Args:
             path: directory path of json files which you which to process, or a path to a single file
