@@ -7,8 +7,14 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
+import torch
 from attr import define, field
+from nptyping import NDArray
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from tqdm import tqdm
+
+from lib.LayoutLM import LayoutLM
+from lib.LayoutLMv2 import LayoutLMv2
 
 from lib.LayoutLM import LayoutLM
 from lib.LayoutLMv2 import LayoutLMv2
@@ -22,6 +28,16 @@ class RepresentationType(str, Enum):
     RIVLET_COUNT = "rivlet_count"
     RIVLET_TFIDF = "rivlet_tfidf"
     LAYOUT_LM = "vanilla_lmv1"
+<<<<<<< HEAD
+=======
+
+
+class SquashStrategy(str, Enum):
+    AVERAGE_ALL_WORDS = "average_all_words"
+    AVERAGE_ALL_WORDS_MASK_PADS = "average_all_words_mask_pads"
+    AVERAGE_ALL_WORDS_MASK_PADS_PAD_LENGTH = "average_all_words_mask_pads_pad_length"
+    UNROLL_WORDS = "unroll_words"
+>>>>>>> 37ab2b6af87a76d25b7d3d0f51c3ee036d80ea2f
 
 
 @define
@@ -38,7 +54,7 @@ class DocumentRepresentation:
     rivlet_stream: str = field(init=False)
 
     # Mapping of representation type to vector. A document can have many possible representations.
-    vectorized: Dict[str, np.array] = field(init=False)
+    vectorized: Dict[str, NDArray] = field(init=False)
 
     # Mapping of representation type to cluster assignment.
     cluster: Dict[str, int] = field(init=False)
@@ -156,6 +172,7 @@ def prepare_representations_for_rivlet_tfidf(data: CollectionRepresentations) ->
 
 
 def prepare_representations_for_layout_lmv1(
+<<<<<<< HEAD
     data: CollectionRepresentations, model_path: Optional[Path] = None
 ) -> CollectionRepresentations:
     lm = LayoutLM()
@@ -170,3 +187,44 @@ def prepare_representations_for_layout_lmv1(
             documents[doc] = representation
 
     return data
+=======
+    data: CollectionRepresentations,
+    model_path: Optional[Path] = None,
+    squash_strategy=SquashStrategy.AVERAGE_ALL_WORDS,
+) -> CollectionRepresentations:
+    lm = LayoutLM()
+    for collection in data.values():
+        for doc, representation in tqdm(collection.items()):
+            lm.process_json(representation.rivlet_path, "processed_word", "location", position_processing=True)
+            lm.get_encodings()
+
+            data = lm.get_hidden_state(model_path)
+            hidden_states = torch.stack(data["last_hidden_state"][0]).numpy()
+            attention_mask = data["attention_mask"][0].numpy()
+
+            representation.vectorized[RepresentationType.LAYOUT_LM] = squash_hidden_states(
+                hidden_states, attention_mask, squash_strategy
+            )
+            collection[doc] = representation
+            lm.reset_preprocessed_data()
+
+    return data
+
+
+def squash_hidden_states(hidden_states: NDArray, attention_mask: NDArray, squash_strategy: SquashStrategy) -> NDArray:
+    """
+    Squashes hidden_state matrix into a vector.
+    """
+    if squash_strategy == SquashStrategy.AVERAGE_ALL_WORDS:
+        return np.mean(hidden_states, axis=0)
+    elif squash_strategy == SquashStrategy.AVERAGE_ALL_WORDS_MASK_PADS:
+        # return np.mean(hidden_states, axis=0)
+        pass
+    elif squash_strategy == SquashStrategy.AVERAGE_ALL_WORDS_MASK_PADS_PAD_LENGTH:
+        # return np.mean()
+        pass
+    elif squash_strategy == SquashStrategy.UNROLL_WORDS:
+        pass
+    else:
+        raise ValueError(f"Unknown squash strategy: {squash_strategy}")
+>>>>>>> 37ab2b6af87a76d25b7d3d0f51c3ee036d80ea2f

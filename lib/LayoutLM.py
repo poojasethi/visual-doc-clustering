@@ -121,6 +121,16 @@ class LayoutLM:
         self.label2idx = {}
         self.ft_data = pd.DataFrame()
 
+<<<<<<< HEAD
+=======
+    def reset_preprocessed_data(self):
+        self.pt_data = pd.DataFrame(columns=["image_path", "words", "bbox", "label"])
+        self.pt_data["words"] = self.pt_data["words"].astype("object")
+        self.pt_data["bbox"] = self.pt_data["bbox"].astype("object")
+        self.pt_data["label"] = self.pt_data["label"].astype("object")
+        self.encoding = pd.DataFrame()
+
+>>>>>>> 37ab2b6af87a76d25b7d3d0f51c3ee036d80ea2f
     def process_json(self, path, word_label, position_label, label_label=None, position_processing=False, funsd=False):
         """
         Args:
