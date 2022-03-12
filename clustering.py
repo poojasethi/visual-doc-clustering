@@ -22,6 +22,7 @@ from typing import List, Optional
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+from joblib import dump, load
 from scipy.optimize import linear_sum_assignment
 from sklearn import preprocessing
 from sklearn.decomposition import PCA, TruncatedSVD
@@ -32,6 +33,7 @@ from lib.path_utils import existing_directory
 from lib.plot_utils import display_scatterplot
 from lib.representations import CollectionRepresentations, RepresentationType, prepare_representations
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -45,10 +47,26 @@ class ClusteringParameters:
 
 
 def main(args: argparse.Namespace):
-    # Vectorize the data
-    data = prepare_representations(
-        args.data_path, args.representation, models_dir=args.models_path, squash_strategy=args.squash_strategy
-    )
+    logger.info("Running document clustering")
+
+    # Vectorize the data, but before, check if it's already been vectorized and try loading it.
+    prepared_data_path = args.output_path / "prepared_data.joblib"
+    if prepared_data_path.exists():
+        logger.info(f"Loading document representations from {prepared_data_path}")
+        data = load(prepared_data_path)
+    else:
+        logger.info(f"Preparing document representations...")
+        data = prepare_representations(
+            args.data_path,
+            args.representation,
+            models_dir=args.models_path,
+            squash_strategy=args.squash_strategy,
+        )
+        try:
+            dump(data, prepared_data_path)
+        except Exception as e:
+            logger.warning(f"Failed to save embeddings to {prepared_data_path}")
+            logger.warning(e)
 
     # Run clustering algorithm
     data = apply_clustering(data, args.representation, args.num_clusters, args.embedding_size)
