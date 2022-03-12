@@ -211,16 +211,16 @@ def prepare_representations_for_layout_lm(
         lm = LayoutLMv2()
         for collection in data.values():
             for doc, representation in tqdm(collection.items()):
-                lm_data = lm.get_outputs(str(representation.rivlet_path.parent))
-                breakpoint()
-                hidden_states = torch.stack(lm_data["last_hidden_state"][0]).numpy()
-                attention_mask = lm_data["attention_mask"][0].numpy()
+                lm_data = lm.process_example(representation.first_page_path)
+                hidden_states = lm_data["last_hidden_state"]).numpy()
 
+                # TODO(pooja): To debug: python clustering.py -p datasets/rvl-cdip/ -r vanilla_lmv2
+                # breakpoint()
+                attention_mask = lm_data["attention_mask"][0].numpy()
                 representation.vectorized[rep_type] = squash_hidden_states(
                     hidden_states, attention_mask, squash_strategy
                 )
                 collection[doc] = representation
-                breakpoint()
     else:
         raise ValueError(f"Unsupported representation type: {rep_type}")
     return data
