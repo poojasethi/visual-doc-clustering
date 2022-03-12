@@ -28,6 +28,7 @@ from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.metrics import calinski_harabasz_score, classification_report, confusion_matrix, silhouette_score
 from sklearn.mixture import BayesianGaussianMixture
 
+from lib.path_utils import existing_directory
 from lib.plot_utils import display_scatterplot
 from lib.representations import CollectionRepresentations, RepresentationType, prepare_representations
 
@@ -45,7 +46,7 @@ class ClusteringParameters:
 
 def main(args: argparse.Namespace):
     # Vectorize the data
-    data = prepare_representations(args.data_path, args.representation)
+    data = prepare_representations(args.data_path, args.representation, models_dir=args.models_path)
 
     # Run clustering algorithm
     data = apply_clustering(data, args.representation, args.num_clusters, args.embedding_size)
@@ -205,17 +206,31 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-p",
         "--data-path",
-        type=Path,
+        type=existing_directory,
         help="Path to directory containing collections. "
         "Each collection is assumed to be pre-processed using fetch_data.py",
         default="data/demo/",
+    )
+    parser.add_argument(
+        "-m",
+        "--models-path",
+        type=existing_directory,
+        help="Path to directory containing pretrained or finetuned models. ",
+        default="finetuned_models/",
     )
     parser.add_argument(
         "-r",
         "--representation",
         type=str,
         help="Document representation",
-        choices=["rivlet_count", "rivlet_tfidf", "vanilla_lmv1"],  # Must be a member of RepresentationTypek
+        choices=[
+            "rivlet_count",
+            "rivlet_tfidf",
+            "vanilla_lmv1",
+            "finetuned_related_lmv1",
+            "finetuned_unrelated_lmv1",
+            "vanilla_lmv2",
+        ],  # Must be a member of RepresentationType
         default="rivlet_count",
     )
     parser.add_argument(

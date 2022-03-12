@@ -33,3 +33,4 @@ datasets/sroie2019/*
 data/
 models/
 embeddings/
+finetuned_models/
