@@ -453,8 +453,6 @@ class LayoutLM:
         )
 
         datapoint["last_hidden_state"] = outputs.last_hidden_state[0]
-        breakpoint()
-
         return datapoint
 
     def get_hidden_state(self, outpath=None, model_path=None, batch_size: Optional[int] = None):

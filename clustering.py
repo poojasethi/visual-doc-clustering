@@ -17,7 +17,7 @@ import statistics
 from collections import Counter, defaultdict
 from enum import Enum
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -54,7 +54,7 @@ def main(args: argparse.Namespace):
     data = apply_clustering(data, args.representation, args.num_clusters, args.embedding_size)
 
     # Visualize the clusters and log metrics.
-    plot_data_and_metrics(data, args.representation, args.debug)
+    plot_data_and_metrics(data, args.representation, args.debug, args.output_path)
 
 
 def apply_clustering(
@@ -104,7 +104,9 @@ def apply_clustering(
     return data
 
 
-def plot_data_and_metrics(data: CollectionRepresentations, rep_type: str, debug: bool = False) -> None:
+def plot_data_and_metrics(
+    data: CollectionRepresentations, rep_type: str, debug: bool = False, output_path: Optional[Path] = None
+) -> None:
     corpus = [
         (
             representation.vectorized[rep_type],
@@ -117,10 +119,12 @@ def plot_data_and_metrics(data: CollectionRepresentations, rep_type: str, debug:
     ]
 
     corpus_vectorized, corpus_collections, corpus_clusters, first_pages = map(list, zip(*corpus))
-    display_scatterplot(corpus_vectorized, corpus_collections, corpus_clusters, first_pages, rep_type)
-    display_confusion_matrix(corpus_collections, corpus_clusters, debug)
-    calculate_cluster_precision(corpus_collections, corpus_clusters)
-    calculate_scores_with_unknown_gold(corpus_vectorized, corpus_clusters)
+    display_scatterplot(
+        corpus_vectorized, corpus_collections, corpus_clusters, first_pages, rep_type, output_path=output_path
+    )
+    # display_confusion_matrix(corpus_collections, corpus_clusters, debug)
+    # calculate_cluster_precision(corpus_collections, corpus_clusters)
+    calculate_scores_with_unknown_gold(corpus_vectorized, corpus_clusters, output_path=output_path)
 
 
 def display_confusion_matrix(corpus_collections: List[str], corpus_clusters: List[int], debug: bool) -> None:
@@ -198,9 +202,19 @@ def calculate_cluster_precision(
 def calculate_scores_with_unknown_gold(
     corpus_vectorized: List[int],
     corpus_clusters: List[int],
+    output_path: Optional[Path] = None,
 ) -> None:
-    logger.info(f"Silhouette coefficient: {silhouette_score(corpus_vectorized, corpus_clusters)}")
-    logger.info(f"Calinski-Harabasz index: {calinski_harabasz_score(corpus_vectorized, corpus_clusters)}")
+    silhouette = f"Silhouette coefficient: {silhouette_score(corpus_vectorized, corpus_clusters)}"
+    ch = f"Calinski-Harabasz index: {calinski_harabasz_score(corpus_vectorized, corpus_clusters)}"
+
+    logger.info(silhouette)
+    logger.info(ch)
+
+    if output_path:
+        with open(output_path / "scores.txt", "w") as fh:
+            fh.write(silhouette)
+            fh.write("\n")
+            fh.write(ch)
 
 
 def get_parser() -> argparse.ArgumentParser:
@@ -219,6 +233,13 @@ def get_parser() -> argparse.ArgumentParser:
         type=existing_directory,
         help="Path to directory containing pretrained or finetuned models. ",
         default="finetuned_models/",
+    )
+
+    parser.add_argument(
+        "-o",
+        "--output-path",
+        type=existing_directory,
+        help="Path to save results in. ",
     )
     parser.add_argument(
         "-r",
