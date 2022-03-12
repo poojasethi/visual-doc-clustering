@@ -56,6 +56,9 @@ class LayoutLMv2:
 
         self.encoding = pd.DataFrame()
 
+    def reset_encodings(self):
+        self.encoding = pd.DataFrame()
+
     def __get_encodings(self, example):
 
         image = Image.open(example["image_path"]).convert("RGB")

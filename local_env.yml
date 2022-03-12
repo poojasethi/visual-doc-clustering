@@ -1,7 +1,7 @@
-name: local_nmt
+name: local_env
 channels:
-  - huggingface
   - pytorch
+  - huggingface
   - conda-forge
   - defaults
 dependencies:
@@ -22,10 +22,10 @@ dependencies:
   - backcall=0.2.0
   - backports=1.0
   - backports.functools_lru_cache=1.6.4
-  - black=22.1.0
   - blas=1.0
   - brotli=1.0.9
   - brotli-bin=1.0.9
+  - brotlipy=0.7.0
   - bzip2=1.0.8
   - c-ares=1.18.1
   - ca-certificates=2021.10.8
@@ -33,6 +33,7 @@ dependencies:
   - cffi=1.15.0
   - chardet=3.0.4
   - click=8.0.3
+  - colorama=0.4.4
   - cryptography=36.0.0
   - dataclasses=0.8
   - datasets=1.18.3
@@ -64,9 +65,11 @@ dependencies:
   - krb5=1.19.2
   - lame=3.100
   - lcms2=2.12
+  - libblas=3.9.0
   - libbrotlicommon=1.0.9
   - libbrotlidec=1.0.9
   - libbrotlienc=1.0.9
+  - libcblas=3.9.0
   - libcurl=7.79.1
   - libcxx=12.0.0
   - libedit=3.1.20191231
@@ -89,6 +92,7 @@ dependencies:
   - libwebp=1.2.0
   - libwebp-base=1.2.0
   - libxml2=2.9.12
+  - libzlib=1.2.11
   - llvm-openmp=12.0.0
   - lz4-c=1.9.3
   - matplotlib-inline=0.1.3
@@ -110,6 +114,7 @@ dependencies:
   - openssl=1.1.1l
   - orc=1.6.7
   - packaging=21.3
+  - pandas=1.4.1
   - parquet-cpp=1.5.1
   - parso=0.8.3
   - pathspec=0.9.0
@@ -146,6 +151,7 @@ dependencies:
   - snappy=1.1.8
   - sqlite=3.37.0
   - stack_data=0.1.4
+  - tbb=2021.5.0
   - threadpoolctl=2.2.0
   - tk=8.6.11
   - tokenizers=0.10.3
@@ -169,25 +175,36 @@ dependencies:
   - zstd=1.4.9
   - pip:
     - absl-py==1.0.0
+    - antlr4-python3-runtime==4.8
+    - appdirs==1.4.4
+    - black==21.4b2
     - cachetools==5.0.0
     - charset-normalizer==2.0.11
-    - colorama==0.4.4
+    - cloudpickle==2.0.0
     - cycler==0.11.0
+    - detectron2==0.6
     - fonttools==4.30.0
+    - future==0.18.2
+    - fvcore==0.1.5.post20220305
     - google-auth==2.5.0
     - google-auth-oauthlib==0.4.6
     - grpcio==1.43.0
+    - hydra-core==1.1.1
     - idna==3.3
     - importlib-metadata==4.10.1
+    - importlib-resources==5.4.0
+    - iopath==0.1.9
     - kiwisolver==1.3.2
     - markdown==3.3.6
     - matplotlib==3.5.1
     - oauthlib==3.2.0
-    - pandas==1.4.1
+    - omegaconf==2.1.1
     - portalocker==2.3.2
     - protobuf==3.19.4
     - pyasn1==0.4.8
     - pyasn1-modules==0.2.8
+    - pycocotools==2.0.4
+    - pydot==1.4.2
     - requests==2.27.1
     - requests-oauthlib==1.3.1
     - rsa==4.8
@@ -198,6 +215,9 @@ dependencies:
     - tensorboard==2.8.0
     - tensorboard-data-server==0.6.1
     - tensorboard-plugin-wit==1.8.1
+    - termcolor==1.1.0
+    - toml==0.10.2
     - urllib3==1.26.8
     - werkzeug==2.0.2
-prefix: /Users/pooja/opt/anaconda3/envs/local_nmt
+    - yacs==0.1.8
+prefix: /Users/pooja/opt/anaconda3/envs/local_env

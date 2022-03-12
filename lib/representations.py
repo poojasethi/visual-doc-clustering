@@ -219,10 +219,15 @@ def prepare_representations_for_layout_lm(
                 hidden_states = np.array([np.array(x) for x in lm_data["last_hidden_state"][0]])
                 attention_mask = lm_data["attention_mask"][0].numpy()
 
+                # NOTE(bryan): Low-resolution image feature map is 7 x 7. When flattened, one obtains 49 image tokens.
+                attention_image = np.ones(49)
+                attention_mask = np.concatenate((attention_mask, attention_image), axis=0)
+
                 representation.vectorized[rep_type] = squash_hidden_states(
                     hidden_states, attention_mask, squash_strategy
                 )
                 collection[doc] = representation
+                lm.reset_encodings()
     else:
         raise ValueError(f"Unsupported representation type: {rep_type}")
     return data
