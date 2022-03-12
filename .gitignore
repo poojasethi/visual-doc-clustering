@@ -32,3 +32,4 @@ datasets/sroie2019/*
 
 data/
 models/
+finetuned_models/

@@ -12,6 +12,15 @@ And should be stored with the following directory structure and names:
 `datasets/rvl-cdip/`
 `datasets/sroie2019/`
 
+### Download finetuned models.
+Models are available for download [here]()
+
+And should be stored with the following directory structure and names:
+```
+finetuned_models/finetuned_related_lmv1/
+finetuned_models/finetuned_unrelated_lmv2/
+```
+
 ## Training and running models.
 
 ## Get document embeddings from LayoutLM (and variants).

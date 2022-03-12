@@ -24,7 +24,10 @@ logger = getLogger(__name__)
 class RepresentationType(str, Enum):
     RIVLET_COUNT = "rivlet_count"
     RIVLET_TFIDF = "rivlet_tfidf"
-    LAYOUT_LM = "vanilla_lmv1"
+    VANILLA_LMV1 = "vanilla_lmv1"
+    FINETUNED_RELATED_LMV1 = "finetuned_related_lmv1"
+    FINETUNED_UNRELATED_LMV1 = "finetuned_unrelated_lmv1"
+    VANILLA_LMV2 = "vanilla_lmv2"
 
 
 class SquashStrategy(str, Enum):
@@ -125,8 +128,18 @@ def prepare_representations(
         data = prepare_representations_for_rivlet_count(data)
     elif rep_type == RepresentationType.RIVLET_TFIDF:
         data = prepare_representations_for_rivlet_tfidf(data)
-    elif rep_type == RepresentationType.LAYOUT_LM:
-        data = prepare_representations_for_layout_lmv1(data)
+    elif rep_type in (
+        RepresentationType.VANILLA_LMV1,
+        RepresentationType.FINETUNED_RELATED_LMV1,
+        RepresentationType.FINETUNED_UNRELATED_LMV1,
+        RepresentationType.VANILLA_LMV2,
+    ):
+        model_path = (
+            None
+            if rep_type in (RepresentationType.VANILLA_LMV1, RepresentationType.VANILLA_LMV2)
+            else models_dir / rep_type
+        )
+        data = prepare_representations_for_layout_lm(data, rep_type, model_path=model_path)
     else:
         raise ValueError(f"Unknown representation type: {rep_type}")
 
@@ -165,26 +178,52 @@ def prepare_representations_for_rivlet_tfidf(data: CollectionRepresentations) ->
     return data
 
 
-def prepare_representations_for_layout_lmv1(
+def prepare_representations_for_layout_lm(
     data: CollectionRepresentations,
+    rep_type: RepresentationType,
     model_path: Optional[Path] = None,
     squash_strategy=SquashStrategy.LAST_WORD,
 ) -> CollectionRepresentations:
-    lm = LayoutLM()
-    for collection in data.values():
-        for doc, representation in tqdm(collection.items()):
-            lm.process_json(representation.rivlet_path, "processed_word", "location", position_processing=True)
-            lm.get_encodings()
+    lm = None
+    if rep_type in (
+        RepresentationType.VANILLA_LMV1,
+        RepresentationType.FINETUNED_RELATED_LMV1,
+        RepresentationType.FINETUNED_UNRELATED_LMV1,
+    ):
+        lm = LayoutLM()
+        for collection in data.values():
+            for doc, representation in tqdm(collection.items()):
+                # NOTE(pooja): The current implementation is a bit hacky in that the model predictions are obtained
+                # one-at-a-time. In the future, obtaining model predictions should be fully vectorized.
+                lm.process_json(representation.rivlet_path, "processed_word", "location", position_processing=True)
+                lm.get_encodings()
 
-            lm_data = lm.get_hidden_state(model_path)
-            hidden_states = torch.stack(lm_data["last_hidden_state"][0]).numpy()
-            attention_mask = lm_data["attention_mask"][0].numpy()
+                lm_data = lm.get_hidden_state(model_path=model_path)
+                hidden_states = torch.stack(lm_data["last_hidden_state"][0]).numpy()
+                attention_mask = lm_data["attention_mask"][0].numpy()
 
-            representation.vectorized[RepresentationType.LAYOUT_LM] = squash_hidden_states(
-                hidden_states, attention_mask, squash_strategy
-            )
-            collection[doc] = representation
-            lm.reset_preprocessed_data()
+                representation.vectorized[rep_type] = squash_hidden_states(
+                    hidden_states, attention_mask, squash_strategy
+                )
+                collection[doc] = representation
+                lm.reset_preprocessed_data()
+
+    elif rep_type in (RepresentationType.VANILLA_LMV2):
+        lm = LayoutLMv2()
+        for collection in data.values():
+            for doc, representation in tqdm(collection.items()):
+                lm_data = lm.get_outputs(str(representation.rivlet_path.parent))
+                breakpoint()
+                hidden_states = torch.stack(lm_data["last_hidden_state"][0]).numpy()
+                attention_mask = lm_data["attention_mask"][0].numpy()
+
+                representation.vectorized[rep_type] = squash_hidden_states(
+                    hidden_states, attention_mask, squash_strategy
+                )
+                collection[doc] = representation
+                breakpoint()
+    else:
+        raise ValueError(f"Unsupported representation type: {rep_type}")
 
     return data
 
@@ -192,7 +231,10 @@ def prepare_representations_for_layout_lmv1(
 def squash_hidden_states(hidden_states: NDArray, attention_mask: NDArray, squash_strategy: SquashStrategy) -> NDArray:
     """
     Squashes hidden_state matrix into a vector.
+    TODO(pooja): Investigate ways hidden states are generally combined to form sentence vectors.
     """
+    logger.info(f"Squashing hidden states using {squash_strategy}")
+
     if squash_strategy == SquashStrategy.AVERAGE_ALL_WORDS:
         return np.mean(hidden_states, axis=0)
     elif squash_strategy == SquashStrategy.AVERAGE_ALL_WORDS_MASK_PADS:
