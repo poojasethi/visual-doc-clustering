@@ -19,6 +19,7 @@ def get_parser() -> argparse.ArgumentParser:
             "finetuned_lmv1_related",
             "finetuned_lmv1_unrelated",
             "vanilla_lmv2",
+            "finetuned_lmv2_related"
         ],
         type=str,
         help="The type of model to obtain embeddings from",
@@ -103,6 +104,15 @@ def main(args: argparse.Namespace):
         # rivlets_dir  = "/Users/bryanchia/Desktop/stanford/classes/cs/cs224n/project/data/files"
         outpath = args.embedding_dir / "layoutlmv2_noft_encodings.pkl"
         hidden_state = i4.get_outputs(rivlets_dir, outpath = outpath, file_type = args.file_type)
+        print(hidden_state.to_pandas())
+
+    # OUTPUT FINE-TUNED HIDDEN STATES (RELATED TASK)
+    elif args.model == "finetuned_lmv2_related":
+        i5 = LayoutLMv2()
+
+        outpath = args.embedding_dir / "layoutlmv2_ft_encodings.pkl"
+        model_path = args.models_dir / "fine_tune_related_v2"
+        hidden_state = i5.get_outputs(rivlets_dir, outpath = outpath, model = model_path, file_type = args.file_type)
         print(hidden_state.to_pandas())
 
 
