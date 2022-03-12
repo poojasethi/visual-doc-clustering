@@ -34,3 +34,4 @@ data/
 models/
 embeddings/
 finetuned_models/
+results/*.png
