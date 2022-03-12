@@ -34,7 +34,6 @@ class SquashStrategy(str, Enum):
     AVERAGE_ALL_WORDS = "average_all_words"
     AVERAGE_ALL_WORDS_MASK_PADS = "average_all_words_mask_pads"
     LAST_WORD = "last_word"
-    UNROLL_WORDS = "unroll_words"
 
 
 @define
@@ -86,7 +85,7 @@ CollectionRepresentations = Dict[str, Dict[str, DocumentRepresentation]]
 
 
 def prepare_representations(
-    data_path: str, rep_type: str, models_dir: Optional[Path] = None
+    data_path: str, rep_type: str, models_dir: Optional[Path] = None, squash_strategy: Optional[SquashStrategy] = None
 ) -> CollectionRepresentations:
     """
     Returns a mapping of collection to document (file) to vectorized representation.
@@ -139,7 +138,9 @@ def prepare_representations(
             if rep_type in (RepresentationType.VANILLA_LMV1, RepresentationType.VANILLA_LMV2)
             else models_dir / rep_type
         )
-        data = prepare_representations_for_layout_lm(data, rep_type, model_path=model_path)
+        data = prepare_representations_for_layout_lm(
+            data, rep_type, model_path=model_path, squash_strategy=squash_strategy
+        )
     else:
         raise ValueError(f"Unknown representation type: {rep_type}")
 
@@ -182,7 +183,7 @@ def prepare_representations_for_layout_lm(
     data: CollectionRepresentations,
     rep_type: RepresentationType,
     model_path: Optional[Path] = None,
-    squash_strategy=SquashStrategy.LAST_WORD,
+    squash_strategy: SquashStrategy = SquashStrategy.AVERAGE_ALL_WORDS,
 ) -> CollectionRepresentations:
     lm = None
     if rep_type in (

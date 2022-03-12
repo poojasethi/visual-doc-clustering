@@ -46,7 +46,9 @@ class ClusteringParameters:
 
 def main(args: argparse.Namespace):
     # Vectorize the data
-    data = prepare_representations(args.data_path, args.representation, models_dir=args.models_path)
+    data = prepare_representations(
+        args.data_path, args.representation, models_dir=args.models_path, squash_strategy=args.squash_strategy
+    )
 
     # Run clustering algorithm
     data = apply_clustering(data, args.representation, args.num_clusters, args.embedding_size)
@@ -232,6 +234,17 @@ def get_parser() -> argparse.ArgumentParser:
             "vanilla_lmv2",
         ],  # Must be a member of RepresentationType
         default="rivlet_count",
+    )
+    parser.add_argument(
+        "-s",
+        "--squash-strategy",
+        type=str,
+        help="Strategy to use for squashing hidden states",
+        choices=[
+            "average_all_words",
+            "average_all_words_mask_pads",
+            "last_word",
+        ],
     )
     parser.add_argument(
         "-c",
