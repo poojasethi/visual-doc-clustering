@@ -73,10 +73,10 @@ class LayoutLMv2:
         example["last_hidden_state"] = outputs.last_hidden_state[0]
         return example
 
-    def get_outputs(self, directory, model=None, outpath=None, file_type="png"):
+    def get_outputs(self, path, image_path=None, model=None, outpath=None, file_type="png"):
 
         # Import Files
-        path = Path(directory)
+        path = Path(path)
 
         if path.is_dir():
             files = path.rglob("*." + file_type)
@@ -85,11 +85,15 @@ class LayoutLMv2:
 
         # Select just one image to use -- need to think about whether we want to use more than 1 page
         # Should we concatenate the two hidden states?
-        image_paths = [
-            re.match(r"(.+)/pages/0/(.*)", str(f)).group(0)
-            for f in [*files]
-            if re.match(r"(.+)/pages/0/(.*)", str(f)) is not None
-        ]
+        image_paths = (
+            [image_path]
+            if image_path
+            else [
+                re.match(r"(.+)/pages/0/(.*)", str(f)).group(0)
+                for f in [*files]
+                if re.match(r"(.+)/pages/0/(.*)", str(f)) is not None
+            ]
+        )
 
         # Testing a smaller number of images at the moment
         i = 0
