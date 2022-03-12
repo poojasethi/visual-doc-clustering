@@ -61,6 +61,7 @@ def main(args: argparse.Namespace):
             args.representation,
             models_dir=args.models_path,
             squash_strategy=args.squash_strategy,
+            normalize_length=args.normalize_length,
         )
         try:
             dump(data, prepared_data_path)
@@ -306,6 +307,12 @@ def get_parser() -> argparse.ArgumentParser:
         type=int,
         help="Maximum document embedding size",
         default=300,
+    )
+    parser.add_argument(
+        "-n",
+        "--normalize-length",
+        action="store_true",
+        help="Divide true sequence length by padded sequence length",
     )
     parser.add_argument("-d", "--debug", action="store_true")
     return parser
