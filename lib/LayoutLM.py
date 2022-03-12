@@ -4,7 +4,7 @@ import os
 import re
 from distutils.version import LooseVersion
 from pathlib import Path
-from typing import Dict, List, Set, Tuple, Union
+from typing import Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -281,6 +281,7 @@ class LayoutLM:
 
             files = glob.glob(in_directory + "/" + label + "/*")
 
+            # TODO: Should these files be sorted?
             for filepath in files:
                 self.ft_data.at[i, "image_path"] = filepath
                 self.ft_data.at[i, "label"] = label
@@ -452,10 +453,11 @@ class LayoutLM:
         )
 
         datapoint["last_hidden_state"] = outputs.last_hidden_state[0]
+        breakpoint()
 
         return datapoint
 
-    def get_hidden_state(self, outpath=None, model_path=None):
+    def get_hidden_state(self, outpath=None, model_path=None, batch_size: Optional[int] = None):
         """
         Args:
             outpath: default None, directory path where you want to store pickles
@@ -475,12 +477,19 @@ class LayoutLM:
 
         model.to(device)
 
-        dataset = self.encodings.map(lambda example: self.__get_example_hidden_state(example, model, model_path))
+        if not batch_size:
+            dataset = self.encodings.map(lambda example: self.__get_example_hidden_state(example, model, model_path))
 
-        if outpath is not None:
-            dataset.to_pandas().to_pickle(outpath)
+            if outpath is not None:
+                dataset.to_pandas().to_pickle(outpath)
 
-        return dataset
+            return dataset
+        else:
+            for i in range(0, len(self.encodings), batch_size):
+                batch = self.encodings[i : i + batch_size]
+                # TODO(pooja): self.encodings has type Arrows Dataset, but when we index it, it returns a dict. We need to convert this dict back into a Dataset somehow so we can apply the map function over it.
+
+            return None
 
     def fine_tune(self, input_dir, model_save_path, token, batch_size=5, num_train_epochs=5, save_epoch=1):
 

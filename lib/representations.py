@@ -177,7 +177,6 @@ def prepare_representations_for_rivlet_tfidf(data: CollectionRepresentations) ->
 
     return data
 
-
 def prepare_representations_for_layout_lm(
     data: CollectionRepresentations,
     rep_type: RepresentationType,
@@ -224,7 +223,6 @@ def prepare_representations_for_layout_lm(
                 breakpoint()
     else:
         raise ValueError(f"Unsupported representation type: {rep_type}")
-
     return data
 
 
