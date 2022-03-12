@@ -17,11 +17,12 @@ import statistics
 from collections import Counter, defaultdict
 from enum import Enum
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+from joblib import dump, load
 from scipy.optimize import linear_sum_assignment
 from sklearn import preprocessing
 from sklearn.decomposition import PCA, TruncatedSVD
@@ -32,6 +33,7 @@ from lib.path_utils import existing_directory
 from lib.plot_utils import display_scatterplot
 from lib.representations import CollectionRepresentations, RepresentationType, prepare_representations
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -45,14 +47,32 @@ class ClusteringParameters:
 
 
 def main(args: argparse.Namespace):
-    # Vectorize the data
-    data = prepare_representations(args.data_path, args.representation, models_dir=args.models_path)
+    logger.info("Running document clustering")
+
+    # Vectorize the data, but before, check if it's already been vectorized and try loading it.
+    prepared_data_path = args.output_path / "prepared_data.joblib"
+    if prepared_data_path.exists():
+        logger.info(f"Loading document representations from {prepared_data_path}")
+        data = load(prepared_data_path)
+    else:
+        logger.info(f"Preparing document representations...")
+        data = prepare_representations(
+            args.data_path,
+            args.representation,
+            models_dir=args.models_path,
+            squash_strategy=args.squash_strategy,
+        )
+        try:
+            dump(data, prepared_data_path)
+        except Exception as e:
+            logger.warning(f"Failed to save embeddings to {prepared_data_path}")
+            logger.warning(e)
 
     # Run clustering algorithm
     data = apply_clustering(data, args.representation, args.num_clusters, args.embedding_size)
 
     # Visualize the clusters and log metrics.
-    plot_data_and_metrics(data, args.representation, args.debug)
+    plot_data_and_metrics(data, args.representation, args.debug, args.output_path)
 
 
 def apply_clustering(
@@ -102,7 +122,9 @@ def apply_clustering(
     return data
 
 
-def plot_data_and_metrics(data: CollectionRepresentations, rep_type: str, debug: bool = False) -> None:
+def plot_data_and_metrics(
+    data: CollectionRepresentations, rep_type: str, debug: bool = False, output_path: Optional[Path] = None
+) -> None:
     corpus = [
         (
             representation.vectorized[rep_type],
@@ -115,10 +137,12 @@ def plot_data_and_metrics(data: CollectionRepresentations, rep_type: str, debug:
     ]
 
     corpus_vectorized, corpus_collections, corpus_clusters, first_pages = map(list, zip(*corpus))
-    display_scatterplot(corpus_vectorized, corpus_collections, corpus_clusters, first_pages, rep_type)
-    display_confusion_matrix(corpus_collections, corpus_clusters, debug)
-    calculate_cluster_precision(corpus_collections, corpus_clusters)
-    calculate_scores_with_unknown_gold(corpus_vectorized, corpus_clusters)
+    display_scatterplot(
+        corpus_vectorized, corpus_collections, corpus_clusters, first_pages, rep_type, output_path=output_path
+    )
+    # display_confusion_matrix(corpus_collections, corpus_clusters, debug)
+    # calculate_cluster_precision(corpus_collections, corpus_clusters)
+    calculate_scores_with_unknown_gold(corpus_vectorized, corpus_clusters, output_path=output_path)
 
 
 def display_confusion_matrix(corpus_collections: List[str], corpus_clusters: List[int], debug: bool) -> None:
@@ -196,9 +220,19 @@ def calculate_cluster_precision(
 def calculate_scores_with_unknown_gold(
     corpus_vectorized: List[int],
     corpus_clusters: List[int],
+    output_path: Optional[Path] = None,
 ) -> None:
-    logger.info(f"Silhouette coefficient: {silhouette_score(corpus_vectorized, corpus_clusters)}")
-    logger.info(f"Calinski-Harabasz index: {calinski_harabasz_score(corpus_vectorized, corpus_clusters)}")
+    silhouette = f"Silhouette coefficient: {silhouette_score(corpus_vectorized, corpus_clusters)}"
+    ch = f"Calinski-Harabasz index: {calinski_harabasz_score(corpus_vectorized, corpus_clusters)}"
+
+    logger.info(silhouette)
+    logger.info(ch)
+
+    if output_path:
+        with open(output_path / "scores.txt", "w") as fh:
+            fh.write(silhouette)
+            fh.write("\n")
+            fh.write(ch)
 
 
 def get_parser() -> argparse.ArgumentParser:
@@ -218,6 +252,13 @@ def get_parser() -> argparse.ArgumentParser:
         help="Path to directory containing pretrained or finetuned models. ",
         default="finetuned_models/",
     )
+
+    parser.add_argument(
+        "-o",
+        "--output-path",
+        type=existing_directory,
+        help="Path to save results in. ",
+    )
     parser.add_argument(
         "-r",
         "--representation",
@@ -232,6 +273,17 @@ def get_parser() -> argparse.ArgumentParser:
             "vanilla_lmv2",
         ],  # Must be a member of RepresentationType
         default="rivlet_count",
+    )
+    parser.add_argument(
+        "-s",
+        "--squash-strategy",
+        type=str,
+        help="Strategy to use for squashing hidden states",
+        choices=[
+            "average_all_words",
+            "average_all_words_mask_pads",
+            "last_word",
+        ],
     )
     parser.add_argument(
         "-c",

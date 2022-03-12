@@ -34,7 +34,6 @@ class SquashStrategy(str, Enum):
     AVERAGE_ALL_WORDS = "average_all_words"
     AVERAGE_ALL_WORDS_MASK_PADS = "average_all_words_mask_pads"
     LAST_WORD = "last_word"
-    UNROLL_WORDS = "unroll_words"
 
 
 @define
@@ -86,7 +85,7 @@ CollectionRepresentations = Dict[str, Dict[str, DocumentRepresentation]]
 
 
 def prepare_representations(
-    data_path: str, rep_type: str, models_dir: Optional[Path] = None
+    data_path: str, rep_type: str, models_dir: Optional[Path] = None, squash_strategy: Optional[SquashStrategy] = None
 ) -> CollectionRepresentations:
     """
     Returns a mapping of collection to document (file) to vectorized representation.
@@ -139,7 +138,9 @@ def prepare_representations(
             if rep_type in (RepresentationType.VANILLA_LMV1, RepresentationType.VANILLA_LMV2)
             else models_dir / rep_type
         )
-        data = prepare_representations_for_layout_lm(data, rep_type, model_path=model_path)
+        data = prepare_representations_for_layout_lm(
+            data, rep_type, model_path=model_path, squash_strategy=squash_strategy
+        )
     else:
         raise ValueError(f"Unknown representation type: {rep_type}")
 
@@ -177,11 +178,12 @@ def prepare_representations_for_rivlet_tfidf(data: CollectionRepresentations) ->
 
     return data
 
+
 def prepare_representations_for_layout_lm(
     data: CollectionRepresentations,
     rep_type: RepresentationType,
     model_path: Optional[Path] = None,
-    squash_strategy=SquashStrategy.LAST_WORD,
+    squash_strategy: SquashStrategy = SquashStrategy.AVERAGE_ALL_WORDS,
 ) -> CollectionRepresentations:
     lm = None
     if rep_type in (
@@ -211,16 +213,21 @@ def prepare_representations_for_layout_lm(
         lm = LayoutLMv2()
         for collection in data.values():
             for doc, representation in tqdm(collection.items()):
-                lm_data = lm.get_outputs(str(representation.rivlet_path.parent))
-                breakpoint()
-                hidden_states = torch.stack(lm_data["last_hidden_state"][0]).numpy()
+                lm_data = lm.get_outputs(
+                    str(representation.rivlet_path), image_path=str(representation.first_page_path)
+                )
+                hidden_states = np.array([np.array(x) for x in lm_data["last_hidden_state"][0]])
                 attention_mask = lm_data["attention_mask"][0].numpy()
+
+                # NOTE(bryan): Low-resolution image feature map is 7 x 7. When flattened, one obtains 49 image tokens.
+                attention_image = np.ones(49)
+                attention_mask = np.concatenate((attention_mask, attention_image), axis=0)
 
                 representation.vectorized[rep_type] = squash_hidden_states(
                     hidden_states, attention_mask, squash_strategy
                 )
                 collection[doc] = representation
-                breakpoint()
+                lm.reset_encodings()
     else:
         raise ValueError(f"Unsupported representation type: {rep_type}")
     return data

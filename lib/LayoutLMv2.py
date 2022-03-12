@@ -3,10 +3,17 @@ import torch
 from typing import List, Tuple, Dict, Set, Union
 import json
 import glob
+import json
 import re
 from pathlib import Path
-import pandas as pd
+from typing import Dict, List, Set, Tuple, Union
+
 import numpy as np
+import pandas as pd
+import torch
+from PIL import Image
+from transformers import LayoutLMv2Model, LayoutLMv2Processor
+
 from datasets import Array2D, Array3D, Array4D, ClassLabel, Dataset, Features, Sequence, Value, concatenate_datasets
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
@@ -19,14 +26,27 @@ from transformers import (
     LayoutLMv2ForSequenceClassification,
     AdamW)
 
-class LayoutLMv2():
-    """ Get embeddings for LayoutLMv2
-    """
-    def __init__(self, vocab_size = 30522, hidden_size = 768, num_hidden_layers = 12,\
-        num_attention_heads = 12, intermediate_size = 3072, hidden_act = 'gelu', hidden_dropout_prob = 0.1,\
-            attention_probs_dropout_prob = 0.1, max_position_embeddings = 512, type_vocab_size = 2,\
-                initializer_range = 0.02, layer_norm_eps = 1e-12, pad_token_id = 0, \
-                    max_2d_position_embeddings = 1024):
+
+class LayoutLMv2:
+    """Get embeddings for LayoutLMv2"""
+
+    def __init__(
+        self,
+        vocab_size=30522,
+        hidden_size=768,
+        num_hidden_layers=12,
+        num_attention_heads=12,
+        intermediate_size=3072,
+        hidden_act="gelu",
+        hidden_dropout_prob=0.1,
+        attention_probs_dropout_prob=0.1,
+        max_position_embeddings=512,
+        type_vocab_size=2,
+        initializer_range=0.02,
+        layer_norm_eps=1e-12,
+        pad_token_id=0,
+        max_2d_position_embeddings=1024,
+    ):
 
         # Initializing a LayoutLM configuration with default values
         self.vocab_size = vocab_size
@@ -52,6 +72,9 @@ class LayoutLMv2():
         self.label2idx = {}
         self.int_data = pd.DataFrame()
 
+    def reset_encodings(self):
+        self.encoding = pd.DataFrame()
+
     def __get_encodings(self, example):
         image = Image.open(example["image_path"]).convert("RGB")
         encoding = self.processor(image, padding="max_length", truncation=True)
@@ -65,7 +88,7 @@ class LayoutLMv2():
 
     def __get_hidden_states(self, example, model = None):
         image = Image.open(example["image_path"]).convert("RGB")
-        outputs = self.model(**self.processor(image, padding="max_length", truncation=True, return_tensors = "pt"))
+        outputs = self.model(**self.processor(image, padding="max_length", truncation=True, return_tensors="pt"))
         example["last_hidden_state"] = outputs.last_hidden_state[0]
         return example
 
@@ -73,7 +96,7 @@ class LayoutLMv2():
     def get_outputs(self, directory, labels = False, lhs = True, model = None, outpath = None, dict_path = None, file_type = "png"):
 
         # Import Files
-        path = Path(directory)
+        path = Path(path)
 
         if path.is_dir():
             files = path.rglob("*." + file_type)

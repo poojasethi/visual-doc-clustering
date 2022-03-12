@@ -27,10 +27,10 @@ tags.temp
 __pycache__
 **/__pycache__
 
-datasets/rvl-cdip/*
-datasets/sroie2019/*
+datasets/
 
 data/
 models/
 embeddings/
 finetuned_models/
+results/*.png

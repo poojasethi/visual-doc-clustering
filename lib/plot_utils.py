@@ -72,6 +72,7 @@ def display_scatterplot(
     first_pages: List[Path],
     rep_type: str,
     random_seed: Optional[int] = None,
+    output_path: Optional[Path] = None,
 ) -> None:
     logger.info(f"Using the following random number seed: {random_seed}")
     tsne = TSNE(verbose=1, random_state=random_seed)
@@ -85,7 +86,10 @@ def display_scatterplot(
 
     _make_scrollable_legend(scatter, fig1)
     _add_first_page_animations(x, y, scatter, fig1, first_pages)
-    plt.show()
+    if output_path:
+        plt.savefig(output_path / "scatterplot.png")
+    else:
+        plt.show()
 
 
 def _add_first_page_animations(x: List[int], y: List[int], scatter: Axes, fig: Figure, first_pages: List[Path]) -> None:
