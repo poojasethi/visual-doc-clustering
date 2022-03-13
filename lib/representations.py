@@ -186,6 +186,7 @@ def prepare_representations_for_layout_lm(
     rep_type: RepresentationType,
     model_path: Optional[Path] = None,
     squash_strategy: SquashStrategy = SquashStrategy.AVERAGE_ALL_WORDS,
+    normalize_length: bool = False,
 ) -> CollectionRepresentations:
     lm = None
     if rep_type in (
@@ -204,9 +205,14 @@ def prepare_representations_for_layout_lm(
                 lm_data = lm.get_hidden_state(model_path=model_path)
                 hidden_states = torch.stack(lm_data["last_hidden_state"][0]).numpy()
                 attention_mask = lm_data["attention_mask"][0].numpy()
+                sequence_length = np.sum(attention_mask)
 
                 representation.vectorized[rep_type] = squash_hidden_states(
-                    hidden_states, attention_mask, squash_strategy
+                    hidden_states,
+                    attention_mask,
+                    squash_strategy,
+                    sequence_length=sequence_length,
+                    normalize_length=normalize_length,
                 )
                 collection[doc] = representation
                 lm.reset_preprocessed_data()
@@ -220,13 +226,19 @@ def prepare_representations_for_layout_lm(
                 )
                 hidden_states = np.array([np.array(x) for x in lm_data["last_hidden_state"][0]])
                 attention_mask = lm_data["attention_mask"][0].numpy()
+                sequence_length = np.sum(attention_mask)
 
                 # NOTE(bryan): Low-resolution image feature map is 7 x 7. When flattened, one obtains 49 image tokens.
                 attention_image = np.ones(49)
                 attention_mask = np.concatenate((attention_mask, attention_image), axis=0)
 
+                breakpoint()
                 representation.vectorized[rep_type] = squash_hidden_states(
-                    hidden_states, attention_mask, squash_strategy
+                    hidden_states,
+                    attention_mask,
+                    squash_strategy,
+                    sequence_length,
+                    normalize_length=normalize_length,
                 )
                 collection[doc] = representation
                 lm.reset_encodings()
@@ -235,23 +247,29 @@ def prepare_representations_for_layout_lm(
     return data
 
 
-def squash_hidden_states(hidden_states: NDArray, attention_mask: NDArray, squash_strategy: SquashStrategy) -> NDArray:
+def squash_hidden_states(
+    hidden_states: NDArray,
+    attention_mask: NDArray,
+    squash_strategy: SquashStrategy,
+    sequence_length: int,
+    normalize_length: bool = False,
+) -> NDArray:
     """
     Squashes hidden_state matrix into a vector.
     TODO(pooja): Investigate ways hidden states are generally combined to form sentence vectors.
     """
     logger.info(f"Squashing hidden states using {squash_strategy}")
+    if normalize_length:
+        sequence_length /= 512
 
     if squash_strategy == SquashStrategy.AVERAGE_ALL_WORDS:
         return np.mean(hidden_states, axis=0)
     elif squash_strategy == SquashStrategy.AVERAGE_ALL_WORDS_MASK_PADS:
         non_pad_words = np.expand_dims(attention_mask, axis=1) * hidden_states
         average = np.mean(non_pad_words, axis=0)
-        sequence_length = np.sum(attention_mask)
         output = np.append(average, sequence_length)
         return output
     elif squash_strategy == SquashStrategy.LAST_WORD:
-        sequence_length = np.sum(attention_mask)
         last_word_mask = np.zeros(attention_mask.shape[0])
         last_word_mask[sequence_length - 1] = 1
         last_word = np.sum(np.expand_dims(last_word_mask, axis=1) * hidden_states, axis=0)
