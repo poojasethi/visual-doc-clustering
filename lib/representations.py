@@ -293,6 +293,7 @@ def squash_hidden_states(
         pca_hs = PCA(n_components=1)
         pca_output = pca_hs.fit_transform(non_pad_words.T)
         sequence_length = np.sum(attention_mask)
-        output = np.append(pca_output, sequence_length) if not exclude_length else sequence_length
+        output = np.append(pca_output, sequence_length) if not exclude_length else pca_output
+        return output
     else:
         raise ValueError(f"Unknown squash strategy: {squash_strategy}")
