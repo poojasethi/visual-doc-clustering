@@ -92,6 +92,7 @@ def prepare_representations(
     models_dir: Optional[Path] = None,
     squash_strategy: Optional[SquashStrategy] = None,
     normalize_length: bool = False,
+    exclude_length: bool = False,
 ) -> CollectionRepresentations:
     """
     Returns a mapping of collection to document (file) to vectorized representation.
@@ -145,7 +146,12 @@ def prepare_representations(
             else models_dir / rep_type
         )
         data = prepare_representations_for_layout_lm(
-            data, rep_type, model_path=model_path, squash_strategy=squash_strategy, normalize_length=normalize_length
+            data,
+            rep_type,
+            model_path=model_path,
+            squash_strategy=squash_strategy,
+            normalize_length=normalize_length,
+            exclude_length=exclude_length,
         )
     else:
         raise ValueError(f"Unknown representation type: {rep_type}")
@@ -191,6 +197,7 @@ def prepare_representations_for_layout_lm(
     model_path: Optional[Path] = None,
     squash_strategy: SquashStrategy = SquashStrategy.AVERAGE_ALL_WORDS,
     normalize_length: bool = False,
+    exclude_length: bool = False,
 ) -> CollectionRepresentations:
     lm = None
     if rep_type in (
@@ -217,6 +224,7 @@ def prepare_representations_for_layout_lm(
                     squash_strategy,
                     sequence_length=sequence_length,
                     normalize_length=normalize_length,
+                    exclude_length=exclude_length,
                 )
                 collection[doc] = representation
                 lm.reset_preprocessed_data()
@@ -242,6 +250,7 @@ def prepare_representations_for_layout_lm(
                     squash_strategy,
                     sequence_length,
                     normalize_length=normalize_length,
+                    exclude_length=exclude_length,
                 )
                 collection[doc] = representation
                 lm.reset_encodings()
@@ -256,6 +265,7 @@ def squash_hidden_states(
     squash_strategy: SquashStrategy,
     sequence_length: int,
     normalize_length: bool = False,
+    exclude_length: bool = False,
 ) -> NDArray:
     """
     Squashes hidden_state matrix into a vector.
@@ -270,19 +280,22 @@ def squash_hidden_states(
     elif squash_strategy == SquashStrategy.AVERAGE_ALL_WORDS_MASK_PADS:
         non_pad_words = np.expand_dims(attention_mask, axis=1) * hidden_states
         average = np.mean(non_pad_words, axis=0)
-        output = np.append(average, sequence_length)
+        if not exclude_length:
+            output = np.append(average, sequence_length)
         return output
     elif squash_strategy == SquashStrategy.LAST_WORD:
         last_word_mask = np.zeros(attention_mask.shape[0])
         last_word_mask[sequence_length - 1] = 1
         last_word = np.sum(np.expand_dims(last_word_mask, axis=1) * hidden_states, axis=0)
-        output = np.append(last_word, sequence_length)
+        if not exclude_length:
+            output = np.append(last_word, sequence_length)
         return output
     elif squash_strategy == SquashStrategy.PCA:
         non_pad_words = np.expand_dims(attention_mask, axis=1) * hidden_states
         pca_hs = PCA(n_components=1)
         pca_output = pca_hs.fit_transform(non_pad_words.T)
         sequence_length = np.sum(attention_mask)
-        output = np.append(pca_output, sequence_length)
+        if not exclude_length:
+            output = np.append(pca_output, sequence_length)
     else:
         raise ValueError(f"Unknown squash strategy: {squash_strategy}")

@@ -320,6 +320,11 @@ def get_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Divide true sequence length by padded sequence length",
     )
+    parser.add_argument(
+        "--exclude-length",
+        action="store_true",
+        help="Don't include sequence length in embedding",
+    )
     parser.add_argument("-d", "--debug", action="store_true")
     return parser
 
