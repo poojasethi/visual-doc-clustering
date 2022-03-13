@@ -32,11 +32,20 @@ Additional experiments on methods for combining hidden states:
 
 ### Average all words, mask pads, append normalized sequence length
 ```
-python clustering.py -p datasets/rvl-cdip/ -r vanilla_lmv1 -e 769 -s average_all_words_mask_pads -o results/rvl-cdip/vanilla_lmv1/average_all_words_mask_pads
+python clustering.py -p datasets/rvl-cdip/ -r vanilla_lmv1 -e 769 -s average_all_words_mask_pads -o results/rvl-cdip/vanilla_lmv1/average_all_words_mask_pads_normalized --normalize-length
 ```
 
+### Average all words, mask pads, don't include sequence length
+```
+python clustering.py -p datasets/rvl-cdip/ -r vanilla_lmv1 -e 768 -s average_all_words_mask_pads -o results/rvl-cdip/vanilla_lmv1/average_all_words_mask_pads_length_ablation --exclude-length
+```
 
-## Finetuned LayoutLMV1 (Related)
+### PCA and append sequence length
+```
+python clustering.py -p datasets/rvl-cdip/ -r vanilla_lmv1 -e 769 -s pca -o results/rvl-cdip/vanilla_lmv1/pca
+```
+
+## Finetuned LayoutLMV1 (Related) (RVL-CDIP - Document Classification)
 
 ### Average all words
 ```
@@ -53,7 +62,7 @@ python clustering.py -p datasets/rvl-cdip/ -r finetuned_related_lmv1 -e 769 -s a
 python clustering.py -p datasets/rvl-cdip/ -r finetuned_related_lmv1 -e 769 -s last_word -o results/rvl-cdip/finetuned_related_lmv1/last_word
 ```
 
-## Finetuned LayoutLMV1 (Unrelated)
+## Finetuned LayoutLMV1 (Unrelated) (FUNSD - Entity Grouping)
 
 ### Average all words
 ```
@@ -167,4 +176,21 @@ python clustering.py -p datasets/sroie2019/ -r vanilla_lmv2 -e 769 -s average_al
 ### Last word, append sequence length
 ```
 python clustering.py -p datasets/sroie2019/ -r vanilla_lmv2 -e 769 -s last_word -o results/sroie2019/vanilla_lmv2/last_word
+```
+
+Additional experiments on methods for combining hidden states:
+
+### Average all words, mask pads, append normalized sequence length
+```
+python clustering.py -p datasets/sroie2019/ -r vanilla_lmv1 -e 769 -s average_all_words_mask_pads -o results/sroie2019/vanilla_lmv1/average_all_words_mask_pads_normalized --normalize-length
+```
+
+### Average all words, mask pads, don't include sequence length
+```
+python clustering.py -p datasets/sroie2019/ -r vanilla_lmv1 -e 768 -s average_all_words_mask_pads -o results/sroie2019/vanilla_lmv1/average_all_words_mask_pads_length_ablation --exclude-length
+```
+
+### PCA and append sequence length
+```
+python clustering.py -p datasets/sroie2019/ -r vanilla_lmv1 -e 769 -s pca -o results/sroie2019/vanilla_lmv1/pca
 ```
