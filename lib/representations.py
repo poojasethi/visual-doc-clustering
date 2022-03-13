@@ -87,7 +87,11 @@ CollectionRepresentations = Dict[str, Dict[str, DocumentRepresentation]]
 
 
 def prepare_representations(
-    data_path: str, rep_type: str, models_dir: Optional[Path] = None, squash_strategy: Optional[SquashStrategy] = None
+    data_path: str,
+    rep_type: str,
+    models_dir: Optional[Path] = None,
+    squash_strategy: Optional[SquashStrategy] = None,
+    normalize_length: bool = False,
 ) -> CollectionRepresentations:
     """
     Returns a mapping of collection to document (file) to vectorized representation.
@@ -141,7 +145,7 @@ def prepare_representations(
             else models_dir / rep_type
         )
         data = prepare_representations_for_layout_lm(
-            data, rep_type, model_path=model_path, squash_strategy=squash_strategy
+            data, rep_type, model_path=model_path, squash_strategy=squash_strategy, normalize_length=normalize_length
         )
     else:
         raise ValueError(f"Unknown representation type: {rep_type}")
