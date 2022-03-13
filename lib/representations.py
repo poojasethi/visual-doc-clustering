@@ -232,7 +232,6 @@ def prepare_representations_for_layout_lm(
                 attention_image = np.ones(49)
                 attention_mask = np.concatenate((attention_mask, attention_image), axis=0)
 
-                breakpoint()
                 representation.vectorized[rep_type] = squash_hidden_states(
                     hidden_states,
                     attention_mask,
