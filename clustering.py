@@ -139,7 +139,13 @@ def plot_data_and_metrics(
 
     corpus_vectorized, corpus_collections, corpus_clusters, first_pages = map(list, zip(*corpus))
     display_scatterplot(
-        corpus_vectorized, corpus_collections, corpus_clusters, first_pages, rep_type, output_path=output_path
+        corpus_vectorized,
+        corpus_collections,
+        corpus_clusters,
+        first_pages,
+        rep_type,
+        output_path=output_path,
+        debug=debug,
     )
     # display_confusion_matrix(corpus_collections, corpus_clusters, debug)
     # calculate_cluster_precision(corpus_collections, corpus_clusters)

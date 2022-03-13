@@ -27,44 +27,6 @@ class ScatterKeys:
     DISTANCES = "distances"
 
 
-def display_scatterplot_multilabel(
-    data: pd.DataFrame,
-    random_seed: Optional[int] = None,
-) -> None:
-    logger.info(f"Using the following random number seed: {random_seed}")
-
-    doc_vectors = np.stack(data[ScatterKeys.VECTOR].apply(np.array))
-    tsne = TSNE(verbose=1, random_state=random_seed)
-    corpus_tsne = tsne.fit_transform(doc_vectors)
-
-    x = corpus_tsne[:, 0]
-    y = corpus_tsne[:, 1]
-    alphas = data[ScatterKeys.SPLIT].apply(lambda s: 0.25 if s == "train" else 1).tolist()
-    edgecolors = data[ScatterKeys.CORRECT].apply(lambda x: "red" if not x else "white")
-
-    scatter = sns.scatterplot(
-        x=x,
-        y=y,
-        hue=data[ScatterKeys.PREDICTED],
-        style=data[ScatterKeys.EXPECTED],
-        alpha=alphas,
-        edgecolor=edgecolors,
-        palette="Paired",
-    )
-    scatter.set_title("t-SNE visualization of supervised classifications")
-
-    fig1 = scatter.get_figure()
-
-    _make_scrollable_legend(scatter, fig1)
-
-    first_pages = data[ScatterKeys.FIRST_PAGE].tolist()
-    _add_first_page_animations(x, y, scatter, fig1, first_pages)
-
-    _show_nearest_neighbors(x, y, data, scatter, fig1)
-
-    plt.show()
-
-
 def display_scatterplot(
     corpus_vectorized: List[List[int]],
     corpus_collections: List[str],
@@ -73,6 +35,7 @@ def display_scatterplot(
     rep_type: str,
     random_seed: Optional[int] = None,
     output_path: Optional[Path] = None,
+    debug: bool = False,
 ) -> None:
     logger.info(f"Using the following random number seed: {random_seed}")
     tsne = TSNE(verbose=1, random_state=random_seed)
@@ -88,7 +51,8 @@ def display_scatterplot(
     _add_first_page_animations(x, y, scatter, fig1, first_pages)
     if output_path:
         plt.savefig(output_path / "scatterplot.png")
-    else:
+
+    if debug:
         plt.show()
 
 
