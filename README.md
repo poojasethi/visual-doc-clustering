@@ -13,7 +13,7 @@ And should be stored with the following directory structure and names:
 `datasets/sroie2019/`
 
 ### Download finetuned models.
-Models are available for download [here](python clustering.py -p datasets/rvl-cdip/ -r rivlet_tfidf -e 768 -o results)
+Models are available for download [here](https://drive.google.com/drive/folders/10DERNJwX_3q4OQ9T-ZPWiFGX8ZKAYDwv?usp=sharing)
 And should be stored with the following directory structure and names:
 ```
 finetuned_models/finetuned_related_lmv1/
