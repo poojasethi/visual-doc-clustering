@@ -62,6 +62,7 @@ def main(args: argparse.Namespace):
             models_dir=args.models_path,
             squash_strategy=args.squash_strategy,
             normalize_length=args.normalize_length,
+            exclude_length=args.exclude_length,
         )
         try:
             dump(data, prepared_data_path)

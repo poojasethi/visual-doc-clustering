@@ -280,22 +280,19 @@ def squash_hidden_states(
     elif squash_strategy == SquashStrategy.AVERAGE_ALL_WORDS_MASK_PADS:
         non_pad_words = np.expand_dims(attention_mask, axis=1) * hidden_states
         average = np.mean(non_pad_words, axis=0)
-        if not exclude_length:
-            output = np.append(average, sequence_length)
+        output = np.append(average, sequence_length) if not exclude_length else average
         return output
     elif squash_strategy == SquashStrategy.LAST_WORD:
         last_word_mask = np.zeros(attention_mask.shape[0])
         last_word_mask[sequence_length - 1] = 1
         last_word = np.sum(np.expand_dims(last_word_mask, axis=1) * hidden_states, axis=0)
-        if not exclude_length:
-            output = np.append(last_word, sequence_length)
+        output = np.append(last_word, sequence_length) if not exclude_length else last_word
         return output
     elif squash_strategy == SquashStrategy.PCA:
         non_pad_words = np.expand_dims(attention_mask, axis=1) * hidden_states
         pca_hs = PCA(n_components=1)
         pca_output = pca_hs.fit_transform(non_pad_words.T)
         sequence_length = np.sum(attention_mask)
-        if not exclude_length:
-            output = np.append(pca_output, sequence_length)
+        output = np.append(pca_output, sequence_length) if not exclude_length else sequence_length
     else:
         raise ValueError(f"Unknown squash strategy: {squash_strategy}")
