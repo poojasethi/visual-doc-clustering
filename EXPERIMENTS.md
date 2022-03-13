@@ -28,7 +28,7 @@ python clustering.py -p datasets/rvl-cdip/ -r vanilla_lmv1 -e 769 -s average_all
 ```
 python clustering.py -p datasets/rvl-cdip/ -r vanilla_lmv1 -e 769 -s last_word -o results/rvl-cdip/vanilla_lmv1/last_word
 ```
-Additional Experiments:
+Additional experiments on methods for combining hidden states:
 
 ### Average all words, mask pads, append normalized sequence length
 ```
