@@ -291,6 +291,7 @@ def get_parser() -> argparse.ArgumentParser:
             "average_all_words",
             "average_all_words_mask_pads",
             "last_word",
+            "pca",
         ],
     )
     parser.add_argument(
