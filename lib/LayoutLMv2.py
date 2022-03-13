@@ -237,7 +237,7 @@ class LayoutLMv2:
         # Put the model in training mode
 
         self.model = LayoutLMv2ForSequenceClassification.from_pretrained(
-                "microsoft/layoutlm-base-uncased", num_labels=len(self.label2idx)
+                "microsoft/layoutlmv2-base-uncased", num_labels=len(self.label2idx)
             )
 
         self.model.to(device)

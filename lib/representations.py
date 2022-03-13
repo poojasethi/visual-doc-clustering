@@ -10,6 +10,7 @@ import numpy as np
 import torch
 from attr import define, field
 from nptyping import NDArray
+from sklearn.decomposition import PCA
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from tqdm import tqdm
 
@@ -34,6 +35,7 @@ class SquashStrategy(str, Enum):
     AVERAGE_ALL_WORDS = "average_all_words"
     AVERAGE_ALL_WORDS_MASK_PADS = "average_all_words_mask_pads"
     LAST_WORD = "last_word"
+    PCA = "pca"
 
 
 @define
@@ -255,5 +257,11 @@ def squash_hidden_states(hidden_states: NDArray, attention_mask: NDArray, squash
         last_word = np.sum(np.expand_dims(last_word_mask, axis=1) * hidden_states, axis=0)
         output = np.append(last_word, sequence_length)
         return output
+    elif squash_strategy == SquashStrategy.PCA:
+        non_pad_words = np.expand_dims(attention_mask, axis=1) * hidden_states
+        pca_hs = PCA(n_components=1)
+        pca_output = pca_hs.fit_transform(non_pad_words.T)
+        sequence_length = np.sum(attention_mask)
+        output = np.append(pca_output, sequence_length)
     else:
         raise ValueError(f"Unknown squash strategy: {squash_strategy}")

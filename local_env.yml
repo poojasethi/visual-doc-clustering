@@ -182,7 +182,6 @@ dependencies:
     - charset-normalizer==2.0.11
     - cloudpickle==2.0.0
     - cycler==0.11.0
-    - detectron2==0.6
     - fonttools==4.30.0
     - future==0.18.2
     - fvcore==0.1.5.post20220305
