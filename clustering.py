@@ -62,6 +62,7 @@ def main(args: argparse.Namespace):
             models_dir=args.models_path,
             squash_strategy=args.squash_strategy,
             normalize_length=args.normalize_length,
+            exclude_length=args.exclude_length,
         )
         try:
             dump(data, prepared_data_path)
@@ -139,7 +140,13 @@ def plot_data_and_metrics(
 
     corpus_vectorized, corpus_collections, corpus_clusters, first_pages = map(list, zip(*corpus))
     display_scatterplot(
-        corpus_vectorized, corpus_collections, corpus_clusters, first_pages, rep_type, output_path=output_path
+        corpus_vectorized,
+        corpus_collections,
+        corpus_clusters,
+        first_pages,
+        rep_type,
+        output_path=output_path,
+        debug=debug,
     )
     # display_confusion_matrix(corpus_collections, corpus_clusters, debug)
     # calculate_cluster_precision(corpus_collections, corpus_clusters)
@@ -284,6 +291,7 @@ def get_parser() -> argparse.ArgumentParser:
             "average_all_words",
             "average_all_words_mask_pads",
             "last_word",
+            "pca",
         ],
     )
     parser.add_argument(
@@ -313,6 +321,11 @@ def get_parser() -> argparse.ArgumentParser:
         "--normalize-length",
         action="store_true",
         help="Divide true sequence length by padded sequence length",
+    )
+    parser.add_argument(
+        "--exclude-length",
+        action="store_true",
+        help="Don't include sequence length in embedding",
     )
     parser.add_argument("-d", "--debug", action="store_true")
     return parser
