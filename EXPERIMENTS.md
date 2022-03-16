@@ -177,20 +177,3 @@ python clustering.py -p datasets/sroie2019/ -r vanilla_lmv2 -e 769 -s average_al
 ```
 python clustering.py -p datasets/sroie2019/ -r vanilla_lmv2 -e 769 -s last_word -o results/sroie2019/vanilla_lmv2/last_word
 ```
-
-Additional experiments on methods for combining hidden states:
-
-### Average all words, mask pads, append normalized sequence length
-```
-python clustering.py -p datasets/sroie2019/ -r vanilla_lmv1 -e 769 -s average_all_words_mask_pads -o results/sroie2019/vanilla_lmv1/average_all_words_mask_pads_normalized --normalize-length
-```
-
-### Average all words, mask pads, don't include sequence length
-```
-python clustering.py -p datasets/sroie2019/ -r vanilla_lmv1 -e 768 -s average_all_words_mask_pads -o results/sroie2019/vanilla_lmv1/average_all_words_mask_pads_length_ablation --exclude-length
-```
-
-### PCA and append sequence length
-```
-python clustering.py -p datasets/sroie2019/ -r vanilla_lmv1 -e 769 -s pca -o results/sroie2019/vanilla_lmv1/pca
-```
