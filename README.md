@@ -18,15 +18,18 @@ datasets/rvl-cdip/
 datasets/sroie2019/
 ```
 ### Download finetuned models.
-Models are available for download [here](https://drive.google.com/drive/folders/10DERNJwX_3q4OQ9T-ZPWiFGX8ZKAYDwv?usp=sharing)
+Models are available for download [here](https://drive.google.com/drive/folders/10DERNJwX_3q4OQ9T-ZPWiFGX8ZKAYDwv?usp=sharing).
 And should be stored with the following directory structure and names:
 ```
 finetuned_models/finetuned_related_lmv1/
 finetuned_models/finetuned_unrelated_lmv2/
 ```
 ### Download embeddings and results from paper.
-Prepared document embeddings and experiment results are [here]()
-
+Prepared document embeddings and experiment results are [here](https://drive.google.com/file/d/1kIEQjUhfW5TdL4Zc4pYW5YD7QYXVBUSU/view?usp=sharing).
+And should be stored with the following directory name:
+```
+results/
+```
 
 ## Training and running models.
 
