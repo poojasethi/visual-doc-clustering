@@ -2,7 +2,7 @@
 This is a library for _unsupervised layout identification_ of documents.
 For more details, check out the [paper](https://www.overleaf.com/read/cyfkdbmjmysw).
 
-![CS 224n Poster Session][poster.png]
+![CS 224n Poster Session](poster.png)
 
 ## Getting started
 
