@@ -1,5 +1,6 @@
 # Document Clustering
 This is a library for _unsupervised layout identification_ of documents.
+
 For more details, check out the [paper](https://www.overleaf.com/read/cyfkdbmjmysw).
 
 ![CS 224n Poster Session](poster.png)
@@ -19,6 +20,7 @@ datasets/sroie2019/
 ```
 ### Download finetuned models.
 Models are available for download [here](https://drive.google.com/drive/folders/10DERNJwX_3q4OQ9T-ZPWiFGX8ZKAYDwv?usp=sharing).
+
 And should be stored with the following directory structure and names:
 ```
 finetuned_models/finetuned_related_lmv1/
@@ -26,6 +28,7 @@ finetuned_models/finetuned_unrelated_lmv2/
 ```
 ### Download embeddings and results from paper.
 Prepared document embeddings and experiment results are [here](https://drive.google.com/file/d/1kIEQjUhfW5TdL4Zc4pYW5YD7QYXVBUSU/view?usp=sharing).
+
 And should be stored with the following directory name:
 ```
 results/
@@ -33,7 +36,7 @@ results/
 
 ## Training and running models.
 
-## Get document embeddings from LayoutLM (and variants).
+### Get document embeddings from LayoutLM (and variants).
 `python get_hidden_states.py -r <rivlets_dir> <model_type>`
 
 `python get_hidden_states.py -r datasets/rvl-cdip/rvl_cdip_processed/base/rivlets/ vanilla_lmv1`
