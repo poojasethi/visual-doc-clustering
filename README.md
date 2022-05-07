@@ -1,9 +1,8 @@
 # Document Clustering
 This is a library for _unsupervised layout identification_ of documents.
 
-For more details, check out the [paper](https://www.overleaf.com/read/cyfkdbmjmysw).
+It extends the work done in [doc-clustering](https://github.com/poojasethi/doc-clustering) to use image features!
 
-![CS 224n Poster Session](poster.png)
 
 ## Getting started
 
