@@ -266,6 +266,7 @@ def get_parser() -> argparse.ArgumentParser:
         "--output-path",
         type=existing_directory,
         help="Path to save results in. ",
+        required=True,
     )
     parser.add_argument(
         "-r",
