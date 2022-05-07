@@ -1,7 +1,7 @@
 # Document Clustering
 This is a library for _unsupervised layout identification_ of documents.
 
-It extends the work done in [doc-clustering](https://github.com/poojasethi/doc-clustering) to use image features!
+It extends the work done in [doc-clustering](https://github.com/poojasethi/doc-clustering) to use visual features of documents!
 
 
 ## Getting started
