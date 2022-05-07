@@ -46,8 +46,21 @@ results/
 ### Run unsupervised clustering
 Run one of the commands from EXPERIMENTS.md, or `python clustering.py --help` for example usage.
 
-Add the `--debug` flag to get interactive visualizations as well. For example:
+Add the `--debug` flag to get interactive visualizations as well. Example commands:
 ```
+mkdir -p results/sroie2019/rivlet_count/average_all_words_mask_pads/
+
+python clustering.py -p datasets/sroie2019/ \
+	-r rivlet_count \
+	-e 769 \
+	-s average_all_words_mask_pads \
+	-o results/sroie2019/vanilla_lmv2/average_all_words_mask_pads \
+	--debug
+```
+
+```
+mkdir -p results/sroie2019/vanilla_lmv2/average_all_words_mask_pads/
+
 python clustering.py -p datasets/sroie2019/ \
 	-r vanilla_lmv2 \
 	-e 769 \
