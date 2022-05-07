@@ -8,6 +8,7 @@ It extends the work done in [doc-clustering](https://github.com/poojasethi/doc-c
 
 ### Install dependencies in a new conda environment.
 `conda env create --name local_env --file=local_env.yml`
+`conda activate local_env`
 
 ### Download datasets
 Datasets are available for download [here](https://drive.google.com/drive/folders/1yjovBe7blrTmarF39wk6P_gUwmT0bfk-?usp=sharing).
