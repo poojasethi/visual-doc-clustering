@@ -39,6 +39,8 @@ results/
 ## Training and running models.
 
 ### Get document embeddings from LayoutLM (and variants).
+`mkdir embeddings/`
+
 `python get_hidden_states.py -r <rivlets_dir> <model_type>`
 
 `python get_hidden_states.py -r datasets/rvl-cdip/rvl_cdip_processed/base/rivlets/ vanilla_lmv1`
