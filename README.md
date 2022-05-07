@@ -45,7 +45,7 @@ Run one of the commands from EXPERIMENTS.md, or `python clustering.py --help` fo
 
 Add the `--debug` flag to get interactive visualizations as well. For example:
 ```
-python clustering.py -p datasets/sroie2019/
+python clustering.py -p datasets/sroie2019/ \
 	-r vanilla_lmv2 \
 	-e 769 \
 	-s average_all_words_mask_pads \
