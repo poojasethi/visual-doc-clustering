@@ -54,7 +54,7 @@ python clustering.py -p datasets/sroie2019/ \
 	-r rivlet_count \
 	-e 769 \
 	-s average_all_words_mask_pads \
-	-o results/sroie2019/vanilla_lmv2/average_all_words_mask_pads \
+	-o results/sroie2019/rivlet_count/average_all_words_mask_pads \
 	--debug
 ```
 
