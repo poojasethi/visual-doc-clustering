@@ -101,10 +101,10 @@ def apply_clustering(
         # n_components in PCA must be between [0,  min(n_samples, n_features)]
         # Refs:
         # https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html#sklearn.decomposition.PCA
-        embedding_size = min(len(corpus_vectorized), max_embedding_size) if Model == PCA else max_embedding_size
-        logger.info(f"Set embedding size to {embedding_size}")
+        new_embedding_size = min(len(corpus_vectorized), max_embedding_size) if Model == PCA else max_embedding_size
+        logger.info(f"Truncating embedding size from {embedding_size} to {new_embedding_size}")
 
-        model = Model(n_components=embedding_size)
+        model = Model(n_components=new_embedding_size)
         corpus_vectorized = model.fit_transform(corpus_vectorized)
 
     # TODO(pooja): Also set `weight_concentration_prior`, or use AdaptiveGMM.
@@ -280,6 +280,8 @@ def get_parser() -> argparse.ArgumentParser:
             "finetuned_related_lmv1",
             "finetuned_unrelated_lmv1",
             "vanilla_lmv2",
+            "resnet",
+            "alexnet",
         ],  # Must be a member of RepresentationType
         default="rivlet_count",
     )
@@ -315,7 +317,7 @@ def get_parser() -> argparse.ArgumentParser:
         "--embedding-size",
         type=int,
         help="Maximum document embedding size",
-        default=300,
+        default=1024,
     )
     parser.add_argument(
         "-n",

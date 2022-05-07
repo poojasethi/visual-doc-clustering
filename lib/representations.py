@@ -16,6 +16,7 @@ from tqdm import tqdm
 
 from lib.LayoutLM import LayoutLM
 from lib.LayoutLMv2 import LayoutLMv2
+from lib.image_features import get_image_features
 
 from .path_utils import list_dirnames, only_file, walk
 
@@ -29,6 +30,8 @@ class RepresentationType(str, Enum):
     FINETUNED_RELATED_LMV1 = "finetuned_related_lmv1"
     FINETUNED_UNRELATED_LMV1 = "finetuned_unrelated_lmv1"
     VANILLA_LMV2 = "vanilla_lmv2"
+    RESNET = "resnet"
+    ALEXNET = "alexnet"
 
 
 class SquashStrategy(str, Enum):
@@ -153,10 +156,25 @@ def prepare_representations(
             normalize_length=normalize_length,
             exclude_length=exclude_length,
         )
+    elif rep_type in (RepresentationType.RESNET, RepresentationType.ALEXNET):
+        data = prepare_representations_for_image(data, rep_type)
     else:
         raise ValueError(f"Unknown representation type: {rep_type}")
 
     assert data, "Collection representations cannot be None."
+
+    return data
+
+
+def prepare_representations_for_image(
+    data: CollectionRepresentations, rep_type: RepresentationType
+) -> CollectionRepresentations:
+    for documents in data.values():
+        for doc, representation in documents.items():
+            # Transform can take a list of documents, so this could be sped up by only calling it once.
+            vector = get_image_features(representation.first_page_path, model=rep_type)
+            representation.vectorized[rep_type] = vector.numpy()
+            documents[doc] = representation
 
     return data
 
