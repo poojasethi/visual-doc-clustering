@@ -463,7 +463,7 @@ class LayoutLM:
                 else a vanilla LayoutLM pretrained model will be used
         Outputs:
             Dataframe with image path, words, bbox, input_ids (token index), attention mask, token type ids,
-            label index (numeric encoding), and last hidden state embedding
+            label index (numeric encoding), and last layer hidden states (token embeddings)
         """
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
