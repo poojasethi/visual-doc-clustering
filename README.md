@@ -50,12 +50,19 @@ Run one of the commands from EXPERIMENTS.md, or `python clustering.py --help` fo
 
 Add the `--debug` flag to get interactive visualizations as well. Example commands:
 ```
+mkdir -p results/sroie2019/resnet/
+
+python clustering.py -p datasets/sroie2019/ \
+	-r resnet \
+	-o results/sroie2019/resnet/ \
+	--debug
+```
+
+```
 mkdir -p results/sroie2019/rivlet_count/
 
 python clustering.py -p datasets/sroie2019/ \
 	-r rivlet_count \
-	-e 769 \
-	-s average_all_words_mask_pads \
 	-o results/sroie2019/rivlet_count/ \
 	--debug
 ```
