@@ -273,16 +273,7 @@ def get_parser() -> argparse.ArgumentParser:
         "--representation",
         type=str,
         help="Document representation",
-        choices=[
-            "rivlet_count",
-            "rivlet_tfidf",
-            "vanilla_lmv1",
-            "finetuned_related_lmv1",
-            "finetuned_unrelated_lmv1",
-            "vanilla_lmv2",
-            "resnet",
-            "alexnet",
-        ],  # Must be a member of RepresentationType
+        choices=[r.value for r in RepresentationType],
         default="rivlet_count",
     )
     parser.add_argument(
