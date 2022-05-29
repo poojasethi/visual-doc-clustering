@@ -15,6 +15,8 @@ from transformers import (
     LayoutLMv2Processor,
 )
 
+# from transformers.models.layoutlmv2.modeling_layoutlmv2 import LayoutLMv2Model  # for debugging
+
 logger = logging.getLogger(__name__)
 
 from lib.data_utils import encode_rivlets, get_words_and_bounding_boxes
@@ -40,6 +42,7 @@ class LayoutLMPretrainedModel:
             self.config = LayoutLMv2Config.from_pretrained(self.model_type)
             self.processor = LayoutLMv2Processor.from_pretrained(self.model_type, revision="no_ocr")
             self.model = LayoutLMv2Model.from_pretrained(self.model_type)
+            self.image_feature_pool_shape = self.config.image_feature_pool_shape
         else:
             raise ValueError(f"Unrecognized model type: {self.model_type}")
 
@@ -103,7 +106,7 @@ class LayoutLMPretrainedModel:
         embeddings = embeddings.numpy()
         mask = mask.numpy()
 
-        return embeddings, mask
+        return embeddings, mask, self.max_sequence_length
 
     def _get_layoutlm_v2_hidden_states(
         self,
@@ -113,25 +116,48 @@ class LayoutLMPretrainedModel:
     ) -> Tuple[npt.NDArray, npt.NDArray]:
         image = Image.open(image_path).convert("RGB")
         words, word_bounding_boxes = get_words_and_bounding_boxes(rivlets_path)
-        encoding = self.processor(image, words, boxes=word_bounding_boxes, return_tensors="pt")
+        encoding = self.processor(
+            image,
+            words,
+            boxes=word_bounding_boxes,
+            padding="max_length",
+            truncation=True,
+            max_length=self.max_sequence_length,
+            return_tensors="pt",
+        )
         attention_mask = encoding["attention_mask"]
 
-        outputs = self.model(**encoding)
-
         # Get the token embeddings from the last layer
-        last_hidden_states = outputs.last_hidden_state
+        with torch.no_grad():
+            outputs = self.model(**encoding)
 
-        # NOTE(pooja): The output returned by the model is of shape (batch_size, sequence_length, hidden_size).
-        # Similarly, the attention mask is of shape (batch_size, sequence_length). Because batch_size == 1, we can
-        # squeeze out the first dimension.
-        embeddings = torch.squeeze(last_hidden_states)
-        mask = torch.squeeze(attention_mask)
+            last_hidden_states = outputs.last_hidden_state
 
-        assert (
-            embeddings.shape[0] == mask.shape[0] == self.max_sequence_length
-        ), f"Expected embeddings and mask to have length of {self.max_sequence_length}"
+            # NOTE(pooja): The output returned by the model is of shape (batch_size, sequence_length, hidden_size).
+            # Similarly, the attention mask is of shape (batch_size, sequence_length). Because batch_size == 1, we can
+            # squeeze out the first dimension.
+            embeddings = torch.squeeze(last_hidden_states)
 
-        embeddings = embeddings.numpy()
-        mask = mask.numpy()
+            attention_mask = torch.squeeze(attention_mask)
+            image_feature_length = self.image_feature_pool_shape[0] * self.image_feature_pool_shape[1]
+            visual_attention_mask = torch.ones(image_feature_length)
+            final_attention_mask = torch.cat([attention_mask, visual_attention_mask], dim=0)
 
-        return embeddings, mask
+            # LayoutLMv2 concatenates the text features with 7 x 7 image features.
+            # "This means that the last hidden states of the model will have a length of 512 + 49 = 561,
+            # if you pad the text tokens up to the max length."
+            # Reference: https://huggingface.co/docs/transformers/v4.19.2/en/model_doc/layoutlmv2#overview
+            expected_hidden_state_length = self.max_sequence_length + image_feature_length
+
+            assert (
+                embeddings.shape[0] == expected_hidden_state_length
+            ), f"Expected embeddings to have length of {expected_hidden_state_length}"
+
+            assert (
+                final_attention_mask.shape[0] == expected_hidden_state_length
+            ), f"Expected mask to have length of {expected_hidden_state_length}"
+
+            embeddings = embeddings.numpy()
+            mask = final_attention_mask.numpy()
+
+            return embeddings, mask, self.max_sequence_length
