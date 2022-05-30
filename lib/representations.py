@@ -221,7 +221,8 @@ def prepare_representations_for_layout_lm(
             hidden_state_length = hidden_states.shape[0]
             expected_mask = np.zeros(hidden_state_length)
             expected_mask[:sequence_length] = 1
-            expected_mask[-image_length:] = 1
+            if image_length > 0:
+                expected_mask[-image_length:] = 1
 
             assert np.all(
                 attention_mask == expected_mask
@@ -253,13 +254,14 @@ def squash_hidden_states(
     # TODO(pooja): Add strategy for selecting first (<CLS>) token
     if squash_strategy == SquashStrategy.CLS_TOKEN:
         cls_token = hidden_states[0]
-        assert cls_token.shape == hidden_states.shape[1]
+        assert cls_token.shape[0] == hidden_states.shape[1]
         output = cls_token
     elif squash_strategy == SquashStrategy.LAST_TOKEN:
         last_token = hidden_states[sequence_length - 1]
-        assert last_token.shape == hidden_states.shape[1]
+        assert last_token.shape[0] == hidden_states.shape[1]
         output = last_token
     elif squash_strategy == SquashStrategy.IMAGE_TOKENS:
+        assert image_length > 0, "Must have non-zero image token length to use image_token squash strategy"
         image_tokens = hidden_states[-image_length:]
         assert image_tokens.shape[0] == image_length
         average = np.mean(image_tokens, axis=0)
