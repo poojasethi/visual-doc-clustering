@@ -31,7 +31,7 @@ from sklearn.mixture import BayesianGaussianMixture
 
 from lib.path_utils import existing_directory
 from lib.plot_utils import display_scatterplot
-from lib.representations import CollectionRepresentations, RepresentationType, prepare_representations
+from lib.representations import CollectionRepresentations, RepresentationType, SquashStrategy, prepare_representations
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -59,10 +59,7 @@ def main(args: argparse.Namespace):
         data = prepare_representations(
             args.data_path,
             args.representation,
-            models_dir=args.models_path,
             squash_strategy=args.squash_strategy,
-            normalize_length=args.normalize_length,
-            exclude_length=args.exclude_length,
         )
         try:
             dump(data, prepared_data_path)
@@ -281,12 +278,7 @@ def get_parser() -> argparse.ArgumentParser:
         "--squash-strategy",
         type=str,
         help="Strategy to use for squashing hidden states",
-        choices=[
-            "average_all_words",
-            "average_all_words_mask_pads",
-            "last_word",
-            "pca",
-        ],
+        choices=[s.value for s in SquashStrategy],
     )
     parser.add_argument(
         "-c",

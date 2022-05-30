@@ -1,6 +1,7 @@
+from pathlib import Path
+
 from img2vec_pytorch import Img2Vec
 from PIL import Image
-from pathlib import Path
 
 
 def get_image_features(image_path: Path, model: str = "resnet", cuda: bool = False):

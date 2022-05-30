@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 from typing import Optional, Tuple
 
+import numpy as np
 import numpy.typing as npt
 import tensorflow as tf
 import torch
@@ -9,10 +10,10 @@ from PIL import Image
 from transformers import (
     LayoutLMConfig,
     LayoutLMTokenizerFast,
-    TFLayoutLMModel,
     LayoutLMv2Config,
     LayoutLMv2Model,
     LayoutLMv2Processor,
+    TFLayoutLMModel,
 )
 
 # from transformers.models.layoutlmv2.modeling_layoutlmv2 import LayoutLMv2Model  # for debugging
@@ -24,8 +25,8 @@ from lib.data_utils import encode_rivlets, get_words_and_bounding_boxes
 # References: https://huggingface.co/microsoft/layoutlm-large-uncased
 LAYOUTLM_BASE = "microsoft/layoutlm-base-uncased"
 LAYOUTLM_LARGE = "microsoft/layoutlm-large-uncased"
-LAYOUTLM_V2 = "microsoft/layoutlmv2-base-uncased"
-
+LAYOUTLM_V2_BASE = "microsoft/layoutlmv2-base-uncased"
+LAYOUTLM_V2_LARGE = "microsoft/layoutlmv2-large-uncased"
 
 DEFAULT_LAYOUTLM = LAYOUTLM_BASE
 
@@ -38,7 +39,7 @@ class LayoutLMPretrainedModel:
             self.config = LayoutLMConfig.from_pretrained(self.model_type)
             self.tokenizer = LayoutLMTokenizerFast.from_pretrained(self.model_type)
             self.model = TFLayoutLMModel.from_pretrained(self.model_type)
-        elif self.model_type in (LAYOUTLM_V2):
+        elif self.model_type in (LAYOUTLM_V2_BASE, LAYOUTLM_V2_LARGE):
             self.config = LayoutLMv2Config.from_pretrained(self.model_type)
             self.processor = LayoutLMv2Processor.from_pretrained(self.model_type, revision="no_ocr")
             self.model = LayoutLMv2Model.from_pretrained(self.model_type)
@@ -50,16 +51,20 @@ class LayoutLMPretrainedModel:
 
     def get_hidden_states(
         self, rivlets_path: Path, image_path: Optional[Path] = None, verbose: bool = True
-    ) -> Tuple[npt.NDArray, npt.NDArray]:
+    ) -> Tuple[npt.NDArray, npt.NDArray, int, int]:
 
         token_embeddings, mask = None, None
 
         if self.model_type in [LAYOUTLM_BASE, LAYOUTLM_LARGE]:
-            token_embeddings, mask = self._get_layoutlm_v1_hidden_states(rivlets_path, verbose=verbose)
-        elif self.model_type in [LAYOUTLM_V2]:
+            token_embeddings, mask, sequence_length, image_length = self._get_layoutlm_v1_hidden_states(
+                rivlets_path, verbose=verbose
+            )
+        elif self.model_type in [LAYOUTLM_V2_BASE, LAYOUTLM_V2_LARGE]:
             if not image_path:
                 raise ValueError("Image path must be provided to use LayoutLMv2")
-            token_embeddings, mask = self._get_layoutlm_v2_hidden_states(rivlets_path, image_path, verbose=verbose)
+            token_embeddings, mask, sequence_length, image_length = self._get_layoutlm_v2_hidden_states(
+                rivlets_path, image_path, verbose=verbose
+            )
 
         assert token_embeddings is not None
         assert mask is not None
@@ -69,13 +74,13 @@ class LayoutLMPretrainedModel:
             logger.info(f"Got mask of shape: {mask.shape}")
 
         # Write embeddings to path
-        return token_embeddings, mask
+        return token_embeddings, mask, sequence_length, image_length
 
     def _get_layoutlm_v1_hidden_states(
         self,
         rivlets_path: Path,
         verbose: bool = False,
-    ) -> Tuple[npt.NDArray, npt.NDArray]:
+    ) -> Tuple[npt.NDArray, npt.NDArray, int, int]:
         encoding = encode_rivlets(self.tokenizer, rivlets_path, self.max_sequence_length, verbose=verbose)
 
         input_ids = encoding["input_ids"]
@@ -106,14 +111,16 @@ class LayoutLMPretrainedModel:
         embeddings = embeddings.numpy()
         mask = mask.numpy()
 
-        return embeddings, mask, self.max_sequence_length
+        sequence_length = np.sum(attention_mask)
+        image_length = 0  # LayoutLM doesn't use the image, so the image_length is 0
+        return embeddings, mask, sequence_length, image_length
 
     def _get_layoutlm_v2_hidden_states(
         self,
         rivlets_path: Path,
         image_path: Path,
         verbose: bool = False,
-    ) -> Tuple[npt.NDArray, npt.NDArray]:
+    ) -> Tuple[npt.NDArray, npt.NDArray, int, int]:
         image = Image.open(image_path).convert("RGB")
         words, word_bounding_boxes = get_words_and_bounding_boxes(rivlets_path)
         encoding = self.processor(
@@ -139,7 +146,9 @@ class LayoutLMPretrainedModel:
             embeddings = torch.squeeze(last_hidden_states)
 
             attention_mask = torch.squeeze(attention_mask)
+            sequence_length = torch.sum(attention_mask)
             image_feature_length = self.image_feature_pool_shape[0] * self.image_feature_pool_shape[1]
+
             visual_attention_mask = torch.ones(image_feature_length)
             final_attention_mask = torch.cat([attention_mask, visual_attention_mask], dim=0)
 
@@ -160,4 +169,4 @@ class LayoutLMPretrainedModel:
             embeddings = embeddings.numpy()
             mask = final_attention_mask.numpy()
 
-            return embeddings, mask, self.max_sequence_length
+            return embeddings, mask, sequence_length, image_feature_length

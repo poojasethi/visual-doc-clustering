@@ -6,14 +6,15 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
+import numpy.typing as npt
+import torch
 from attr import define, field
-from nptyping import NDArray
 from sklearn.decomposition import PCA
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from tqdm import tqdm
 
-from lib.layoutlm import LayoutLMPretrainedModel, LAYOUTLM_BASE, LAYOUTLM_LARGE, LAYOUTLM_V2
 from lib.image_features import get_image_features
+from lib.layoutlm import LAYOUTLM_BASE, LAYOUTLM_LARGE, LAYOUTLM_V2_BASE, LAYOUTLM_V2_LARGE, LayoutLMPretrainedModel
 
 from .path_utils import list_dirnames, only_file, walk
 
@@ -27,21 +28,23 @@ class RepresentationType(str, Enum):
     ALEXNET = "alexnet"
     LAYOUTLM_BASE = "layoutlm_base"
     LAYOUTLM_LARGE = "layoutlm_large"
-    LAYOUTLM_V2 = "layoutlm_v2"
+    LAYOUTLM_V2_BASE = "layoutlm_v2_base"
+    LAYOUTLM_V2_LARGE = "layoutlm_v2_large"
 
 
 layoutlm_rep_to_model_type = {
     RepresentationType.LAYOUTLM_BASE: LAYOUTLM_BASE,
     RepresentationType.LAYOUTLM_LARGE: LAYOUTLM_LARGE,
-    RepresentationType.LAYOUTLM_V2: LAYOUTLM_V2,
+    RepresentationType.LAYOUTLM_V2_BASE: LAYOUTLM_V2_BASE,
+    RepresentationType.LAYOUTLM_V2_LARGE: LAYOUTLM_V2_LARGE,
 }
 
 
 class SquashStrategy(str, Enum):
-    AVERAGE_ALL_WORDS = "average_all_words"
-    AVERAGE_ALL_WORDS_MASK_PADS = "average_all_words_mask_pads"
-    LAST_WORD = "last_word"
-    PCA = "pca"
+    CLS_TOKEN = "cls_token"
+    LAST_TOKEN = "last_loken"
+    IMAGE_TOKENS = "image_tokens"
+    AVERAGE_ALL_TOKENS = "average_all_tokens"
 
 
 @define
@@ -58,7 +61,7 @@ class DocumentRepresentation:
     rivlet_stream: str = field(init=False)
 
     # Mapping of representation type to vector. A document can have many possible representations.
-    vectorized: Dict[str, NDArray] = field(init=False)
+    vectorized: Dict[str, npt.NDArray] = field(init=False)
 
     # Mapping of representation type to cluster assignment.
     cluster: Dict[str, int] = field(init=False)
@@ -95,10 +98,7 @@ CollectionRepresentations = Dict[str, Dict[str, DocumentRepresentation]]
 def prepare_representations(
     data_path: str,
     rep_type: str,
-    models_dir: Optional[Path] = None,
-    squash_strategy: SquashStrategy = SquashStrategy.AVERAGE_ALL_WORDS_MASK_PADS,
-    normalize_length: bool = False,
-    exclude_length: bool = False,
+    squash_strategy: SquashStrategy = SquashStrategy.AVERAGE_ALL_TOKENS,
 ) -> CollectionRepresentations:
     """
     Returns a mapping of collection to document (file) to vectorized representation.
@@ -143,14 +143,13 @@ def prepare_representations(
     elif rep_type in (
         RepresentationType.LAYOUTLM_BASE,
         RepresentationType.LAYOUTLM_LARGE,
-        RepresentationType.LAYOUTLM_V2,
+        RepresentationType.LAYOUTLM_V2_BASE,
+        RepresentationType.LAYOUTLM_V2_LARGE,
     ):
         data = prepare_representations_for_layout_lm(
             data,
             rep_type,
             squash_strategy=squash_strategy,
-            normalize_length=False,
-            exclude_length=exclude_length,
         )
     elif rep_type in (RepresentationType.RESNET, RepresentationType.ALEXNET):
         data = prepare_representations_for_image(data, rep_type)
@@ -206,11 +205,7 @@ def prepare_representations_for_rivlet_tfidf(data: CollectionRepresentations) ->
 
 
 def prepare_representations_for_layout_lm(
-    data: CollectionRepresentations,
-    rep_type: RepresentationType,
-    squash_strategy: SquashStrategy,
-    normalize_length: bool = False,
-    exclude_length: bool = False,
+    data: CollectionRepresentations, rep_type: RepresentationType, squash_strategy: SquashStrategy
 ) -> CollectionRepresentations:
 
     model_type = layoutlm_rep_to_model_type[rep_type]
@@ -218,60 +213,66 @@ def prepare_representations_for_layout_lm(
 
     for collection in data.values():
         for doc, representation in tqdm(collection.items()):
-            hidden_states, attention_mask = lm.get_hidden_states(
+            hidden_states, attention_mask, sequence_length, image_length = lm.get_hidden_states(
                 rivlets_path=representation.rivlet_path,
                 image_path=representation.first_page_path,
             )
-            sequence_length = np.sum(attention_mask)
+
+            hidden_state_length = hidden_states.shape[0]
+            expected_mask = np.zeros(hidden_state_length)
+            expected_mask[:sequence_length] = 1
+            expected_mask[-image_length:] = 1
+
+            assert np.all(
+                attention_mask == expected_mask
+            ), f"Given attention mask doesn't match expected mask for sequence length {sequence_length} and image feature length {image_length}"
 
             representation.vectorized[rep_type] = squash_hidden_states(
                 hidden_states,
                 attention_mask,
                 squash_strategy,
-                sequence_length=sequence_length,
-                normalize_length=normalize_length,
-                exclude_length=exclude_length,
+                sequence_length,
+                image_length,
             )
             collection[doc] = representation
 
 
 def squash_hidden_states(
-    hidden_states: NDArray,
-    attention_mask: NDArray,
+    hidden_states: npt.NDArray,
+    attention_mask: npt.NDArray,
     squash_strategy: SquashStrategy,
     sequence_length: int,
-    normalize_length: bool = False,
-    exclude_length: bool = False,
-) -> NDArray:
+    image_length: int,
+    append_length: bool = False,
+) -> npt.NDArray:
     """
     Squashes hidden_state matrix into a vector.
     TODO(pooja): Investigate ways hidden states are generally combined to form sentence vectors.
     """
     logger.info(f"Squashing hidden states using {squash_strategy}")
-    if normalize_length:
-        sequence_length /= 512
-
-    # TODO(pooja): Add first (<CLS>) token
-
-    if squash_strategy == SquashStrategy.AVERAGE_ALL_WORDS:
-        return np.mean(hidden_states, axis=0)
-    elif squash_strategy == SquashStrategy.AVERAGE_ALL_WORDS_MASK_PADS:
-        non_pad_words = np.expand_dims(attention_mask, axis=1) * hidden_states
-        average = np.mean(non_pad_words, axis=0)
-        output = np.append(average, sequence_length) if not exclude_length else average
-        return output
-    elif squash_strategy == SquashStrategy.LAST_WORD:
-        last_word_mask = np.zeros(attention_mask.shape[0])
-        last_word_mask[sequence_length - 1] = 1
-        last_word = np.sum(np.expand_dims(last_word_mask, axis=1) * hidden_states, axis=0)
-        output = np.append(last_word, sequence_length) if not exclude_length else last_word
-        return output
-    elif squash_strategy == SquashStrategy.PCA:
-        non_pad_words = np.expand_dims(attention_mask, axis=1) * hidden_states
-        pca_hs = PCA(n_components=1)
-        pca_output = pca_hs.fit_transform(non_pad_words.T)
-        sequence_length = np.sum(attention_mask)
-        output = np.append(pca_output, sequence_length) if not exclude_length else pca_output
-        return output
+    # TODO(pooja): Add strategy for selecting first (<CLS>) token
+    if squash_strategy == SquashStrategy.CLS_TOKEN:
+        cls_token = hidden_states[0]
+        assert cls_token.shape == hidden_states.shape[1]
+        output = cls_token
+    elif squash_strategy == SquashStrategy.LAST_TOKEN:
+        last_token = hidden_states[sequence_length - 1]
+        assert last_token.shape == hidden_states.shape[1]
+        output = last_token
+    elif squash_strategy == SquashStrategy.IMAGE_TOKENS:
+        image_tokens = hidden_states[-image_length:]
+        assert image_tokens.shape[0] == image_length
+        average = np.mean(image_tokens, axis=0)
+        output = average
+    elif squash_strategy == SquashStrategy.AVERAGE_ALL_TOKENS:
+        tokens = hidden_states[attention_mask.astype(bool)]
+        assert tokens.shape[0] == sequence_length + image_length
+        average = np.mean(tokens, axis=0)
+        output = average
     else:
         raise ValueError(f"Unknown squash strategy: {squash_strategy}")
+
+    if append_length:
+        output = np.append(output, sequence_length)
+
+    return output

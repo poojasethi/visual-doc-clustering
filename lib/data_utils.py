@@ -1,13 +1,11 @@
 import json
 import logging
 from collections import Counter, OrderedDict
-from transformers.utils.dummy_tokenizers_objects import LayoutLMTokenizerFast
 from pathlib import Path
-from typing import Any, List, Tuple, Optional
+from typing import Any, List, Optional, Tuple
 
-import tensorflow as tf
 import numpy as np
-
+import tensorflow as tf
 from transformers.utils.dummy_tokenizers_objects import LayoutLMTokenizerFast
 
 logger = logging.getLogger(__name__)
