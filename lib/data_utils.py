@@ -31,7 +31,7 @@ def encode_rivlets(
     if verbose:
         logger.info(f"Got tokens:\n{encoding.tokens()}")
 
-    word_bounding_boxes = np.array(word_bounding_boxes)
+    word_bounding_boxes = np.array(word_bounding_boxes).astype(int)
 
     # For each word in the original input sequence, count how many tokens were created.
     word_idx_to_token_counts = OrderedDict(Counter(encoding.word_ids()))
@@ -65,6 +65,9 @@ def encode_rivlets(
 
 def get_words_and_bounding_boxes(rivlets_path: Path, verbose: bool = True) -> Tuple[List[str], List[List[int]]]:
     words, word_bounding_boxes = load_rivlets(rivlets_path)
+
+    if not words or not word_bounding_boxes:
+        return [], []
 
     word_bounding_boxes = np.array(word_bounding_boxes)
 

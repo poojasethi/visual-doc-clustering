@@ -42,7 +42,7 @@ layoutlm_rep_to_model_type = {
 
 class SquashStrategy(str, Enum):
     CLS_TOKEN = "cls_token"
-    LAST_TOKEN = "last_loken"
+    SEP_TOKEN = "sep_token"
     IMAGE_TOKENS = "image_tokens"
     AVERAGE_ALL_TOKENS = "average_all_tokens"
 
@@ -236,6 +236,7 @@ def prepare_representations_for_layout_lm(
                 image_length,
             )
             collection[doc] = representation
+    return data
 
 
 def squash_hidden_states(
@@ -256,7 +257,7 @@ def squash_hidden_states(
         cls_token = hidden_states[0]
         assert cls_token.shape[0] == hidden_states.shape[1]
         output = cls_token
-    elif squash_strategy == SquashStrategy.LAST_TOKEN:
+    elif squash_strategy == SquashStrategy.SEP_TOKEN:
         last_token = hidden_states[sequence_length - 1]
         assert last_token.shape[0] == hidden_states.shape[1]
         output = last_token
@@ -267,10 +268,17 @@ def squash_hidden_states(
         average = np.mean(image_tokens, axis=0)
         output = average
     elif squash_strategy == SquashStrategy.AVERAGE_ALL_TOKENS:
-        tokens = hidden_states[attention_mask.astype(bool)]
-        assert tokens.shape[0] == sequence_length + image_length
-        average = np.mean(tokens, axis=0)
-        output = average
+        if sequence_length > 2:
+            attention_mask[0] = 0  # Remove the [CLS] token
+            attention_mask[sequence_length - 1] = 0  # Remove the [SEP] token
+            tokens = hidden_states[attention_mask.astype(bool)]
+            tokens = tokens
+            assert tokens.shape[0] == sequence_length + image_length - 2
+            average = np.mean(tokens, axis=0)
+            output = average
+        else:
+            # Use the <CLS> token if the document is empty.
+            output = hidden_states[0]
     else:
         raise ValueError(f"Unknown squash strategy: {squash_strategy}")
 
