@@ -145,7 +145,7 @@ def plot_data_and_metrics(
         output_path=output_path,
         debug=debug,
     )
-    # display_confusion_matrix(corpus_collections, corpus_clusters, debug)
+    display_confusion_matrix(corpus_collections, corpus_clusters, debug)
     # calculate_cluster_precision(corpus_collections, corpus_clusters)
     calculate_scores_with_unknown_gold(corpus_vectorized, corpus_clusters, output_path=output_path)
 
@@ -154,11 +154,6 @@ def display_confusion_matrix(corpus_collections: List[str], corpus_clusters: Lis
     le = preprocessing.LabelEncoder()
     corpus_collections_encoded = le.fit_transform(corpus_collections)
     unoptimized_cm = confusion_matrix(corpus_collections_encoded, corpus_clusters)
-
-    if debug:
-        # Show the confusion matrix before re-assignment below.
-        debug_cm = sns.heatmap(unoptimized_cm, annot=True, fmt="d")
-        debug_cm.show()
 
     # We don't know a priori which cluster corresponds to which collection. These next few steps attempt to pick
     # the best assignment of cluster to collection s.t. overall accuracy is maximized.
@@ -174,7 +169,9 @@ def display_confusion_matrix(corpus_collections: List[str], corpus_clusters: Lis
     fig = sns.heatmap(optimized_cm, annot=True, fmt="d")
     fig.set_xlabel("Cluster (Predicted)")
     fig.set_ylabel("Collection (Labeled)")
-    plt.show()
+
+    if debug:
+        plt.show()
 
     cluster_to_collection_index = dict(zip(col_ind, row_ind))
     collection_to_cluster_index = dict(zip(row_ind, col_ind))
