@@ -3,7 +3,7 @@ This is a library for _unsupervised layout identification_ of documents.
 
 It extends the work done in [doc-clustering](https://github.com/poojasethi/doc-clustering) to use visual features of documents!
 
-![CS 231n Poster Session](poster.pdf)
+![CS 231n Poster Session](poster.png)
 
 Check out the paper [here](http://cs231n.stanford.edu/reports/2022/pdfs/27.pdf).
 
