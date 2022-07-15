@@ -1,12 +1,11 @@
 # Document Clustering
-This is a library for _unsupervised layout identification_ of documents.
-
-It extends the work done in [doc-clustering](https://github.com/poojasethi/doc-clustering) to use visual features of documents!
-
-![CS 231n Poster Session](poster.png)
+This is a library for _clustering_ documents in an _unsupervised_ fashion.
 
 Check out the 4-minute video explanation [here](https://www.loom.com/share/621cf0663f8b4bb7b34f1046825bdf29) and paper [here](http://cs231n.stanford.edu/reports/2022/pdfs/27.pdf).
 
+![CS 231n Poster Session](poster.png)
+
+This extends the work done in [doc-clustering](https://github.com/poojasethi/doc-clustering) to use visual features of documents!
 
 ## Getting started
 
