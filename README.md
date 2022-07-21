@@ -49,46 +49,34 @@ results/
 
 ## Training and running models.
 
-### Get document embeddings from LayoutLM (and variants).
-`mkdir embeddings/`
-
-`python get_hidden_states.py -r <rivlets_dir> <model_type>`
-
-`python get_hidden_states.py -r datasets/rvl-cdip/rvl_cdip_processed/base/rivlets/ vanilla_lmv1`
-
-### Run unsupervised clustering
 Run one of the commands from EXPERIMENTS.md, or `python clustering.py --help` for example usage.
 
 Add the `--debug` flag to get interactive visualizations as well. Example commands:
+
+### ResNet
 ```
 mkdir -p results/sroie2019/resnet/
-
 python clustering.py -p datasets/sroie2019/ \
 	-r resnet \
 	-o results/sroie2019/resnet/ \
 	--debug
 ```
 
+### AlexNet
 ```
-mkdir -p results/sroie2019/rivlet_count/
-
+mkdir -p results/sroie2019/alexnet/
 python clustering.py -p datasets/sroie2019/ \
-	-r rivlet_count \
-	-o results/sroie2019/rivlet_count/ \
+	-r alexnet \
+	-o results/sroie2019/alexnet/ \
 	--debug
 ```
 
+### LayoutLM Base ([CLS] Token)
 ```
-mkdir -p results/sroie2019/vanilla_lmv2/average_all_words_mask_pads/
-
+mkdir -p results/sroie2019/layoutlm_base/cls_token/
 python clustering.py -p datasets/sroie2019/ \
-	-r vanilla_lmv2 \
-	-e 769 \
-	-s average_all_words_mask_pads \
-	-o results/sroie2019/vanilla_lmv2/average_all_words_mask_pads \
+	-r layoutlm_base \
+	-s cls_token \
+	-o results/sroie2019/layoutlm_base/cls_token/ \
 	--debug
 ```
-
-
-
-
