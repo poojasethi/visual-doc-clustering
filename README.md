@@ -10,10 +10,18 @@ This extends the work done in [doc-clustering](https://github.com/poojasethi/doc
 ## Getting started
 
 ### Install dependencies in a new conda environment.
-`conda env create --name local_env --file=local_env.yml`
+`conda env create --name doc-clustering --file=doc-clustering.yml`
 
 Once you've created the environment, you can activate it using:
-`conda activate local_env`
+`conda activate doc-clustering`
+
+If you're using an M1 (Apple Silicon), you'll need to use Minforge in order to use TensorFlow: https://developer.apple.com/metal/tensorflow-plugin/
+
+Alternatively, you can also create your own, fresh environment:
+`conda env create --name doc-clustering python=3.8`
+
+And then manually find and install the missing dependencies by running:
+`python clustering.py -h`
 
 ### Download datasets
 Datasets are available for download [here](https://drive.google.com/drive/folders/1yjovBe7blrTmarF39wk6P_gUwmT0bfk-?usp=sharing).
