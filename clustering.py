@@ -252,7 +252,6 @@ def get_parser() -> argparse.ArgumentParser:
         "--models-path",
         type=existing_directory,
         help="Path to directory containing pretrained or finetuned models. ",
-        default="finetuned_models/",
     )
 
     parser.add_argument(
